@@ -64,6 +64,7 @@ const Home = () => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
 
                 <div id='home-quote-container'>
                     <h2>
@@ -92,7 +93,6 @@ const Home = () => {
                         </button>
                     </div>
                 </div>
-            </div>
 
 
         </div>
