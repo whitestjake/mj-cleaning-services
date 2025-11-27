@@ -1,12 +1,22 @@
 
+import { useNavigate } from 'react-router-dom';
 
 
 const Home = () => {
 
+    const navigate = useNavigate();
+ 
+    const loginRedirect = () => {
+        navigate('/login')
+    }
+
+    const registerRedirect = () => {
+        navigate('/register')
+    }
 
     return (
 
-        <div>
+        <div id='homepage-container'>
 
             <h1>
                 Welcome to MJ Cleaning Services!
@@ -55,9 +65,33 @@ const Home = () => {
                     </tbody>
                 </table>
 
-                <h2>
-                    Interested in a quote? sign up now to submit a request!
-                </h2>
+                <div id='home-quote-container'>
+                    <h2>
+                        Interested in a quote? sign up or login now to submit a request!
+                    </h2>
+
+                    <div id='home-register-container'>
+                        <h3>Register Here</h3>
+                        <button 
+                            type="submit"
+                            id='register-redirect'
+                            onClick={registerRedirect}
+                        >
+                            Register
+                        </button>
+                    </div>
+
+                    <div id='home-login-container'>
+                        <h3>Login Here</h3>
+                        <button 
+                            type="submit"
+                            id='login-redirect'
+                            onClick={loginRedirect}
+                        >
+                            login
+                        </button>
+                    </div>
+                </div>
             </div>
 
 
