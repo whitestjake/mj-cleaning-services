@@ -54,6 +54,10 @@ const Home = () => {
                         </tr>
                     </tbody>
                 </table>
+
+                <h2>
+                    Interested in a quote? sign up now to submit a request!
+                </h2>
             </div>
 
 
