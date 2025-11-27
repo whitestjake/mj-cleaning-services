@@ -1,7 +1,13 @@
 
-
+import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
+
+    const navigate = useNavigate();
+ 
+    const handleRegistration = () => {
+        navigate('/client-dashboard')
+    }
 
 
     return (
@@ -57,7 +63,13 @@ const Register = () => {
                     required 
                 />
 
-                <button type="submit">Login</button>
+                <button 
+                    type="submit"
+                    id='register-button'
+                    onClick={handleRegistration}
+                >
+                    Register
+                </button>
 
             </form>
 

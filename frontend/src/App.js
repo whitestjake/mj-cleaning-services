@@ -24,7 +24,8 @@ function App() {
         <Route path='/' element={<Home />} />
         <Route path='/login' element={<Login />} />
         <Route path='/register' element={<Register />} />
-        {/* client and manager dashboards currently accessible by adding path to URL */}
+        {/* client and manager dashboards currently accessible 
+        by two buttons in login */}
         <Route path='/client-dashboard' element={<ClientDashboard />}/>
         <Route path='/manager-dashboard' element={<ManagerDashboard />}/>
       </Routes>

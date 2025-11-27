@@ -32,7 +32,7 @@ const Home = () => {
                         </tr>
                         <tr>
                             <td>
-                                Move Out deep <br />
+                                Move out cleaning <br />
                                 <p id='move-out-subtext'>
                                     (deep cleaning)
                                 </p>

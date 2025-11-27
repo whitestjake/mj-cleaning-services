@@ -1,43 +1,18 @@
 
-// import { useState } from 'react';
-// import { useAuth } from '../auth/auth.jsx';
+import { useNavigate } from 'react-router-dom';
 
 
 const Login = () => {
-    // const { login } = useAuth();
-    // const [email, setEmail] = useState('');
-    // const [password, setPassword] = useState('');
-    // const [error, setError] = useState('');
 
-    
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
-    //     setError('');
+    const navigate = useNavigate();
+ 
+    const handleClientLogin = () => {
+        navigate('/client-dashboard')
+    }
 
-    //     try {
-    //         const res = await fetch('', {
-    //             method: 'POST',
-    //             headers: {'Content-Type': 'application/json'},
-    //             body: JSON.stringify({email, password}),
-    //         });
-
-    //         if (!res.ok) {
-    //             setError('Invalid email or password');
-    //             return;
-    //         }
-
-    //         const data = await res.json();
-
-    //         // data.token contains JWT, used by AuthProvider
-    //         login(data.token);
-
-    //     } catch (err) {
-    //         console.error(err);
-    //         setError('Something went wrong');
-    //     }
-
-    // };
-
+    const handleManagerLogin = () => {
+        navigate('/manager-dashboard')
+    }
 
 
     return (
@@ -64,8 +39,23 @@ const Login = () => {
                     // onChange={(e) => setPassword(e.target.value)}
                     required 
                 />
+                
+                {/* two seperate buttons temporarily for easier navigation */}
+                <button 
+                    type="submit"
+                    id='client-login'
+                    onClick={handleClientLogin}
+                >
+                    Client Login
+                </button>
 
-                <button type="submit">Login</button>
+                <button 
+                    type="submit"
+                    id='manager-login'
+                    onClick={handleManagerLogin}
+                >
+                    Manager Login
+                </button>
 
             </form>
 
