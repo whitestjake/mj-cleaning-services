@@ -1,9 +1,8 @@
 
 
 
-const Register = ({route}) => {
+const Register = () => {
 
- 
 
     return (
         <div>

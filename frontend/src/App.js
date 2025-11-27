@@ -1,23 +1,25 @@
 
-import './App.css';
-import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 
+import './App.css';
 import Nav from './components/nav/nav.jsx';
+import Home from './components/home/home.jsx';
 import Login from './components/login/login.jsx';
 import Register from './components/register/register.jsx';
 
 function App() {
 
-  const [page, setPage] = useState('login');
 
   return (
     <div className="App">
 
-      <Nav route={setPage} />
+      <Nav />
 
-      {page === 'home' && <Login route={setPage} />}
-      {page === 'login' && <Login route={setPage} />}
-      {page === 'register' && <Register route={setPage} />}
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/register' element={<Register />} />
+      </Routes>
   
     </div>
   );

@@ -3,7 +3,7 @@
 // import { useAuth } from '../auth/auth.jsx';
 
 
-const Login = ({route}) => {
+const Login = () => {
     // const { login } = useAuth();
     // const [email, setEmail] = useState('');
     // const [password, setPassword] = useState('');
@@ -42,6 +42,7 @@ const Login = ({route}) => {
 
     return (
         <div>
+
             <h2>Login</h2>
 
             {/* {error && <p style={{ color: 'red' }}>{error}</p>} */}

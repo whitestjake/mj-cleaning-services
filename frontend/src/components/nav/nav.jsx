@@ -1,18 +1,19 @@
 
+import { Link } from 'react-router-dom';
 
 
-
-const Navbar = ({route}) => {
+const Navbar = () => {
 
     return (
     <nav >
       <h2>MJ Cleaning</h2>
 
-      <ul >
-        <li><button onClick={() => route("home")}>Home</button></li>
-        <li><button onClick={() => route("login")}>Login</button></li>
-        <li><button onClick={() => route("register")}>Register</button></li>
+      <ul>
+        <li><Link to='/'>Home</Link></li>
+        <li><Link to='/login'>Login</Link></li>
+        <li><Link to='/register'>Register</Link></li>
       </ul>
+
     </nav>
   );
 }
