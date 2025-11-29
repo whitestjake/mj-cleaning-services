@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
 
+import { useState } from 'react';
 import './client.css';
 
 const ClientDashboard = () => {
@@ -24,44 +24,79 @@ const ClientDashboard = () => {
         'Deep Clean': 70,
         'Move Out': 60
     };
+
     let estimate = formData.numRooms * prices[formData.serviceType];
-    if(formData.addYard) estimate += yardServices;
-    if(formData.addOutdoor) estimate += outdoorServices;
+    if (formData.addYard) estimate += yardServices;
+    if (formData.addOutdoor) estimate += outdoorServices;
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(
-            prev => ({
-                ...prev,
-                [name]: type === 'checkbox' ? checked : value
-            })
-        )
+
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
     };
 
+    // file access
     const handlePhotoUpload = (e) => {
-        const files = Array.from(e.target.file);
+        const files = Array.from(e.target.files);
 
         const total = formData.photos.length + files.length;
-
         if (total > 5) {
-            alert('You may only upload up to 5 photos.')
+            alert("You can only upload **up to 5 photos total**.");
             return;
         }
 
         setFormData(prev => ({
             ...prev,
             photos: [...prev.photos, ...files]
-        }))
+        }));
     };
 
     const removePhoto = (index) => {
         setFormData(prev => ({
             ...prev,
             photos: prev.photos.filter((_, i) => i !== index)
-        }))
+        }));
     };
 
-    
+    const handleSubmit = async () => {
+        const form = new FormData();
+
+        // Append text fields
+        for (const key in formData) {
+            if (key !== "photos") {
+                form.append(key, formData[key]);
+            }
+        }
+
+        // Append photos
+        formData.photos.forEach((photo, i) => {
+            form.append("photos", photo);
+        });
+
+        const response = await fetch('/submit', {
+            method: "POST",
+            body: form
+        });
+
+        const data = await response.json();
+        console.log(data);
+    };
+
+// for the backend later
+// import multer from 'multer';
+// const upload = multer({ dest: 'uploads/' });
+
+// app.post('/submit', upload.array('photos', 5), (req, res) => {
+//     console.log(req.body);       // text inputs
+//     console.log(req.files);      // uploaded photos
+
+//     res.json({ message: "OK" });
+// });
+
+
 
     return (
         <div id='client-dashboard-container'>
@@ -83,150 +118,134 @@ const ClientDashboard = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td>Basic cleaning</td>
-                            <td>vacuum, surface cleaning/disenfecting and laundry services</td>
-                            <td>50 per room</td>
-                        </tr>
-                        <tr>
-                            <td>Deep cleaning</td>
-                            <td>Basic cleaning + carpet cleaning</td>
-                            <td>70 per room</td>
-                        </tr>
-                        <tr>
-                            <td>Move out cleaning</td>
-                            <td>discounted deep cleaning services for all rooms</td>
-                            <td>60 per room</td>
-                        </tr>
-                        <tr>
-                            <td>Outdoor cleaning</td>
-                            <td>gutters, siding, patio and outdoor windows</td>
-                            <td>40 per hour</td>
-                        </tr>
-                        <tr>
-                            <td>Yard services</td>
-                            <td>lawn care, snow removal</td>
-                            <td>40 per hour</td>
-                        </tr>
+                        <tr><td>Basic cleaning</td><td>vacuum, surface cleaning/disinfecting and laundry</td><td>$50/room</td></tr>
+                        <tr><td>Deep cleaning</td><td>Basic + carpet cleaning</td><td>$70/room</td></tr>
+                        <tr><td>Move out cleaning</td><td>discounted deep cleaning</td><td>$60/room</td></tr>
+                        <tr><td>Outdoor cleaning</td><td>gutters, siding, windows</td><td>$40/hr</td></tr>
+                        <tr><td>Yard services</td><td>lawn care, snow removal</td><td>$40/hr</td></tr>
                     </tbody>
                 </table>
             </div>
 
-            {/* service selector bar */}
-            <div id='service-selector'>
-                <div 
-                    id='selector-highlight'
-                    style={{ transform: `translateX(${services.indexOf(formData.serviceType) * 100}%)` }} 
-                />
 
-                {services.map(service => (
-                    <button
-                        key={service}
-                        id={formData.serviceType === service ? "selected" : ""}
-                        onClick={() => setFormData(prev => ({ ...prev, serviceType: service}))}
-                    >
-                        {service}
-                    </button>
-                ))}
-            </div>
 
-            {/* client input form */}
-            <div id='client-service-request'>
+            <div id='client-request-container'>
                 <h3>Service Request</h3>
 
-                <label>Service Address</label>
-                <input
-                    type='text'
-                    name='client-address'
-                    placeholder='street, city, state, zip'
-                    value={formData.serviceAddress}
-                    onChange={handleChange}
-                />
-
-                <label>Number of Rooms</label>
-                <input
-                    type='number'
-                    name='numRooms'
-                    min='1'
-                    value={formData.numRooms}
-                    onChange={handleChange}
-                />
-
-                <label>Select Date</label>
-                <input
-                    type='date'
-                    name='serviceDate'
-                    value={formData.serviceDate}
-                    onChange={handleChange}
-                />
-
-                <div>
-                    <label>
-                        <input
-                            type='checkbox'
-                            name='addYard'
-                            checked={formData.addYard}
-                            onChange={handleChange}
-                        />
-                        Add Yard Services (+$40/hr)
-                    </label>
-
-                    <label>
-                        <input
-                            type='checkbox'
-                            name='addOutdoor'
-                            checked={formData.addOutdoor}
-                            onChange={handleChange}
-                        />
-                        Add Outdoor House Cleaning (+$40/hr)
-                    </label>
-                </div>
-
-                <label>Budget Constraints?</label>
-                <input
-                    type='text'
-                    name='clientBudget'
-                    placeholder='"free" = surcharge'
-                    value={formData.clientBudget}
-                    onChange={handleChange}
-                />
-
-
-                <div id='service-estimate'>
-                    <p><strong>Estimated Cost:</strong> ${estimate}</p>
-                </div>
-            </div>
-
-            <div id='client-photo-upload'>
-                <h3> Upload Photos (max 5)</h3>
-
-                <input
-                    type='file'
-                    accept='image/*'
-                    multiple
-                    onChange={handlePhotoUpload}
-                />
-
-                <div id="photo-preview-container">
-                    {formData.photos.map((photo, index) => (
-                        <div id='photo-preview' key={index}>
-                            <img
-                                src={URL.createObjectURL(photo)}
-                                alt={`upload-${index}`}
-                            />
-                            <button
-                                id="remove-photo-btn"
-                                onClick={() => removePhoto(index)}
-                            >
-                                Remove
-                            </button>
-                        </div>    
+                {/* service selector bar */}
+                <div id='service-selector'>
+                    <div 
+                        id='selector-highlight'
+                        style={{
+                            transform: `translateX(${services.indexOf(formData.serviceType) * 100}%)`
+                        }}
+                    />
+                    {services.map(service => (
+                        <button
+                            key={service}
+                            id={formData.serviceType === service ? "selected" : ""}
+                            onClick={() => setFormData(prev => ({ ...prev, serviceType: service }))}
+                        >
+                            {service}
+                        </button>
                     ))}
                 </div>
+
+
+                {/* client input form */}
+                <div id='client-service-request'>
+                    <input
+                        type='text'
+                        name='serviceAddress'
+                        placeholder='street, city, state, zip'
+                        value={formData.serviceAddress}
+                        onChange={handleChange}
+                    />
+
+                    <label>Number of Rooms</label>
+                    <input
+                        type='number'
+                        name='numRooms'
+                        min='1'
+                        value={formData.numRooms}
+                        onChange={handleChange}
+                    />
+
+                    <label>Select Date</label>
+                    <input
+                        type='date'
+                        name='serviceDate'
+                        value={formData.serviceDate}
+                        onChange={handleChange}
+                    />
+
+                    <div>
+                        <label>
+                            <input
+                                type='checkbox'
+                                name='addYard'
+                                checked={formData.addYard}
+                                onChange={handleChange}
+                            />
+                            Add Yard Services (+$40/hr)
+                        </label>
+
+                        <label>
+                            <input
+                                type='checkbox'
+                                name='addOutdoor'
+                                checked={formData.addOutdoor}
+                                onChange={handleChange}
+                            />
+                            Add Outdoor Cleaning (+$40/hr)
+                        </label>
+                    </div>
+
+                    <label>Budget Constraints?</label>
+                    <input
+                        type='text'
+                        name='clientBudget'
+                        placeholder='"free" = surcharge'
+                        value={formData.clientBudget}
+                        onChange={handleChange}
+                    />
+
+                    <div id='service-estimate'>
+                        <p><strong>Estimated Cost:</strong> ${estimate}</p>
+                    </div>
+                </div>
+
+
+
+                <div id='client-photo-upload'>
+                    <h3>Upload Photos (max 5)</h3>
+
+                    <input
+                        type='file'
+                        accept='image/*'
+                        multiple
+                        onChange={handlePhotoUpload}
+                    />
+
+                    <div id="photo-preview-container">
+                        {formData.photos.map((photo, index) => (
+                            <div id='photo-preview' key={index}>
+                                <img src={URL.createObjectURL(photo)} alt="" />
+                                <button onClick={() => removePhoto(index)}>
+                                    Remove
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* NEW: submit button */}
+                <button id="submit-request-btn" onClick={handleSubmit}>
+                    Submit Request
+                </button>
             </div>
         </div>
-    )
-
-}
+    );
+};
 
 export default ClientDashboard;

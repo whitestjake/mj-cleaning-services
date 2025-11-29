@@ -2,16 +2,18 @@
 import { useNavigate } from 'react-router-dom';
 
 
-const Login = () => {
+const Login = ({ setIsLoggedIn }) => {
 
     const navigate = useNavigate();
  
     const handleClientLogin = () => {
         navigate('/client-dashboard')
+        setIsLoggedIn(true)
     }
 
     const handleManagerLogin = () => {
         navigate('/manager-dashboard')
+        setIsLoggedIn(true)
     }
 
 
