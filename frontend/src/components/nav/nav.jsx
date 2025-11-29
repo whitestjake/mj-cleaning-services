@@ -22,7 +22,7 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
               <li><Link to='/login'>Login</Link></li>
               <li><Link to='/register'>Register</Link></li>
             </>
-          )};
+          )}
 
           {isLoggedIn && (
             <>
@@ -43,6 +43,5 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
 }
 
 
-
-
 export default Navbar
+
