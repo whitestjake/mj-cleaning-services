@@ -1,0 +1,89 @@
+
+
+#service-selector {
+    position: relative;
+    display: flex;
+    width: 300px;
+    margin: 25px auto;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#service-selector button {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 2;
+    font-weight: bold;
+}
+
+#service-selector #selector-highlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 33.33%;
+    height: 100%;
+    background: #aee0ff;
+    transition: 0.3s ease;
+    z-index: 1;
+}
+
+#client-form {
+    width: 300px;
+    margin: 30px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#client-form input {
+    padding: 8px;
+}
+
+#estimate-box {
+    margin-top: 15px;
+    padding: 10px;
+    background: #eee;
+    border-radius: 6px;
+    text-align: center;
+}
+
+#photo-upload-section {
+    margin-top: 20px;
+}
+
+#photo-preview-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+#photo-preview {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+#photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+#remove-photo-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: red;
+    color: white;
+    border: none;
+    padding: 2px 5px;
+    border-radius: 4px;
+    cursor: pointer;
+}
