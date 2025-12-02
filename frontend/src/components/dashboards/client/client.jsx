@@ -37,7 +37,6 @@ const ClientDashboard = () => {
                         <tr><td>Deep cleaning</td><td>Basic + carpet cleaning</td><td>$70/room</td></tr>
                         <tr><td>Move out cleaning</td><td>discounted deep cleaning</td><td>$60/room</td></tr>
                         <tr><td>Outdoor cleaning</td><td>gutters, siding, windows</td><td>$40/hr</td></tr>
-                        <tr><td>Yard services</td><td>lawn care, snow removal</td><td>$40/hr</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -52,7 +51,7 @@ const ClientDashboard = () => {
                 />
 
                 <button
-                    className={activeTab === "reqeust" ? "selected" : ""}
+                    className={activeTab === "request" ? "selected" : ""}
                     onClick={() => setActiveTab("request")}
                 >
                     New Request

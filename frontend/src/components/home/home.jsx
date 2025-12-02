@@ -58,10 +58,6 @@ const Home = () => {
                             </td>
                             <td>50 per hour</td>
                         </tr>
-                        <tr>
-                            <td>Yard services</td>
-                            <td>30 per hour</td>
-                        </tr>
                     </tbody>
                 </table>
             </div>

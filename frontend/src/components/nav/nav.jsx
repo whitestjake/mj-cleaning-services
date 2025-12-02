@@ -12,7 +12,7 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
 
     return (
     <nav id='navbar-container'>
-      <h2 id='logo'>MJ</h2>
+      <h2 id='logo'>AJ</h2>
 
       <ul id='navbar-links'>
         <li><Link to='/'>Home</Link></li>

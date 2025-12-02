@@ -7,11 +7,10 @@ const RequestForm = () => {
 
     const [formData, setFormData] = useState({
         serviceType: 'Basic',
-        numRooms: 1,
+        numRooms: '',
         serviceDate: '',
         serviceAddress: '',
         clientBudget: '',
-        addYard: false,
         addOutdoor: false,
         photos: []
     });
@@ -141,6 +140,11 @@ const RequestForm = () => {
                         min='1'
                         value={formData.numRooms}
                         onChange={handleChange}
+                        placeholder={
+                            formData.serviceType === "Move Out"
+                            ? "Requires all rooms"
+                            : ""
+                        }
                     />
 
                     <label>Select Date</label>
@@ -152,16 +156,6 @@ const RequestForm = () => {
                     />
 
                     <div>
-                        <label>
-                            <input
-                                type='checkbox'
-                                name='addYard'
-                                checked={formData.addYard}
-                                onChange={handleChange}
-                            />
-                            Add Yard Services (+$40/hr)
-                        </label>
-
                         <label>
                             <input
                                 type='checkbox'
