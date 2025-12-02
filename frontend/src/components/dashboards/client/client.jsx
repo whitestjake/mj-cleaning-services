@@ -76,11 +76,7 @@ const ClientDashboard = () => {
 
                 {/* This displays the "submitted" tab content */}
                 {activeTab === "submitted" && (
-                    <div>
-                        <h3>Your Submitted Requests</h3>
-                        {/* <Integrate backend data here later. */}
-                        <PriorSubmits />
-                    </div>
+                    <PriorSubmits />
                 )}
             </div>
 
