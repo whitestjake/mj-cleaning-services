@@ -19,12 +19,13 @@ const Home = () => {
         <div id='homepage-container'>
 
             <h1>
-                Welcome to MJ Cleaning Services!
+                Welcome to AJ Cleaning Services!
             </h1>
 
             <div id='home-services-table'>
+                <h3>Services we offer!</h3>
                 <table>
-                    <caption>Services we offer!</caption>
+                    <caption>Prices listed are initial estimates</caption>
                     <thead>
                         <tr>
                             <th>Services</th>

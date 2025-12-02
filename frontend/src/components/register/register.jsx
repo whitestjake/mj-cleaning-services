@@ -1,13 +1,14 @@
 
 import { useNavigate } from 'react-router-dom';
 
-const Register = ({ setIsLoggedIn }) => {
+const Register = ({ setIsLoggedIn, setUserRole }) => {
 
     const navigate = useNavigate();
  
     const handleRegistration = () => {
-        navigate('/client-dashboard')
+        setUserRole('client')
         setIsLoggedIn(true)
+        navigate('/client-dashboard')
     }
 
 

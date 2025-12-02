@@ -1,0 +1,61 @@
+
+
+
+/* Base table styling for all manager tables */
+.manager-window-container table {
+  width: auto; /* fit table content */
+  max-width: 100%; /* don't exceed container */
+  margin: 0 auto 20px; /* center horizontally and add bottom spacing */
+  border-collapse: separate; /* allow rounded corners */
+  border-spacing: 0; /* remove extra spacing */
+  font-family: Arial, sans-serif;
+  text-align: left;
+  display: table; /* proper table layout */
+  border-radius: 10px; /* rounded corners */
+  overflow: hidden; /* clip table corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* subtle shadow */
+}
+
+/* Table headers */
+.manager-window-container th {
+  padding: 12px 15px;
+  background-color: #aee0ff;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+/* Table cells */
+.manager-window-container td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Alternating row colors */
+.manager-window-container tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Row hover effect */
+.manager-window-container tr:hover {
+  background-color: #d0e8ff;
+  cursor: pointer;
+}
+
+/* Heading inside table containers */
+.manager-window-container h2 {
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+/* Scrollable container for smaller screens */
+.manager-window-container {
+  overflow-x: auto; /* horizontal scroll for narrow screens */
+  padding-bottom: 10px; /* space for scrollbar */
+}
+
+
+
+

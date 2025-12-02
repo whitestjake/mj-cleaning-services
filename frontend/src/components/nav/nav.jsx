@@ -2,12 +2,17 @@
 import { Link, useNavigate } from 'react-router-dom';
 
 
-const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
+const Navbar = ({ isLoggedIn, setIsLoggedIn, userRole }) => {
   const navigate = useNavigate();
 
   const handleSignOut = () => {
     setIsLoggedIn(false);
     navigate('/');
+  }
+
+  const goToDashboard = () => {
+    if (userRole === "client") navigate('/client-dashboard')
+    if (userRole === "manager") navigate('/manager-dashboard')
   }
 
     return (
@@ -27,6 +32,13 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
           {isLoggedIn && (
             <>
               <li>
+                <button
+                  onClick={goToDashboard}
+                >
+                  Dashboard
+                </button>
+              </li>
+              <li>
                 <button 
                   id='signout-btn' 
                   onClick={handleSignOut}
@@ -37,11 +49,10 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
             </>
           )}
       </ul>
-
     </nav>
   );
 }
 
 
-export default Navbar
+export default Navbar;
 

@@ -1,0 +1,55 @@
+
+
+
+.manager-container {
+  width: 95%;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+}
+
+.manager-container h1 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+/* Tabs container */
+.manager-tab-selection {
+  position: relative;
+  display: flex;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  overflow: hidden;
+  width: 600px; /* adjust as needed */
+  margin: 0 auto 30px;
+  background: #f9f9f9;
+}
+
+/* Individual buttons */
+.manager-tab-selection button {
+  flex: 1;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  position: relative;
+  z-index: 2;
+  transition: color 0.3s ease;
+}
+
+.manager-tab-selection button:hover {
+  color: #0077cc;
+}
+
+/* Highlight that slides around active tab */
+.tab-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / 4); /* 4 tabs total */
+  height: 100%;
+  background: #aee0ff;
+  border-radius: 10px;
+  z-index: 1;
+  transition: transform 0.3s ease;
+}
