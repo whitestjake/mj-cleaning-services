@@ -1,0 +1,41 @@
+
+
+/* filterTable.css */
+.filter-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.filter-table th,
+.filter-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.filter-table th {
+  background-color: #f4f4f4;
+}
+
+.filter-row input,
+.filter-row select {
+  width: 90%;
+  padding: 3px 5px;
+  margin: 2px 0;
+}
+
+.number-filter input,
+.date-filter input {
+  width: 45%;
+  margin-right: 5%;
+}
+
+.no-data {
+  text-align: center;
+  padding: 10px;
+  color: #666;
+}
+
+
+

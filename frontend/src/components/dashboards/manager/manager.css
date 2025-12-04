@@ -46,7 +46,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: calc(100% / 4); /* 4 tabs total */
+  width: calc(100% / 5); /* 5 tabs total */
   height: 100%;
   background: #aee0ff;
   border-radius: 10px;

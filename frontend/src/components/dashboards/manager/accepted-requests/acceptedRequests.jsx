@@ -1,5 +1,6 @@
 
 
+
 import { useState, useEffect } from "react";
 import { RequestsAPI } from "../../../../api.js";
 
@@ -8,26 +9,27 @@ import FilterTable from "../filter-bar/filterBar.jsx";
 
 import "../managerWindow.css";
 
-const PendingResponses = () => {
-  const [pending, setPending] = useState([]);
+const AcceptedRequests = () => {
+  const [completed, setCompleted] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
-    const fetchPending = async () => {
-      const data = await RequestsAPI.getByStatus("pending_response");
-      setPending(data);
+    const fetchCompleted = async () => {
+      const data = await RequestsAPI.getByStatus("completed");
+      setCompleted(data);
     };
-    fetchPending();
+    fetchCompleted();
   }, []);
 
-  // Table only shows snapshot
+  // Table snapshot columns
   const columns = [
     { label: "Client Name", key: "clientName", filterType: "text" },
-    { label: "Manager Quote", key: "managerQuote", filterType: "text" },
-    { label: "Scheduled Time", key: "scheduledTime", filterType: "date" },
+    { label: "Service Type", key: "serviceType", filterType: "text" },
+    { label: "Completion Date", key: "completionDate", filterType: "date" },
+    { label: "Quoted Price", key: "managerQuote", filterType: "text" },
   ];
 
-  // Modal fields show all relevant details
+  // Modal fields show full details
   const modalFields = [
     { label: "Client Name", key: "clientName" },
     { label: "Phone", key: "phone" },
@@ -36,9 +38,10 @@ const PendingResponses = () => {
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
     { label: "Address", key: "serviceAddress" },
     { label: "Client Notes", key: "notes" },
-    { label: "Manager Quote", key: "managerQuote" },
-    { label: "Scheduled Time", key: "scheduledTime" },
+    { label: "Completion Date", key: "completionDate" },
+    { label: "Quoted Price", key: "managerQuote" },
     { label: "Manager Note", key: "managerNote" },
+    { label: "Status", key: "status" },
     { label: "Photos", key: "photos", render: (photos) =>
         photos && photos.length > 0
           ? `${photos.length} photo(s) uploaded`
@@ -48,25 +51,24 @@ const PendingResponses = () => {
 
   return (
     <div className="manager-window-container">
-      <h2>Pending Responses</h2>
+      <h2>Completed Requests</h2>
 
-      <FilterTable columns={columns} data={pending} onRowClick={setSelectedRequest} />
+      <FilterTable columns={columns} data={completed} onRowClick={setSelectedRequest} />
 
       {selectedRequest && (
         <SubWindowModal
-          title="Pending Response Details"
+          title="Completed Request Details"
           data={selectedRequest}
           fields={modalFields}
           onClose={() => setSelectedRequest(null)}
-          type="pending"
+          type="completed"
         />
       )}
     </div>
   );
 };
 
-export default PendingResponses;
-
+export default AcceptedRequests;
 
 
 
