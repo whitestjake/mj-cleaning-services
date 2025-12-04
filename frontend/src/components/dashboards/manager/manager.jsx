@@ -1,7 +1,6 @@
 
 
 
-// manager.jsx
 import { useState, useEffect } from "react";
 import { RequestsAPI } from "../../../api.js";
 
