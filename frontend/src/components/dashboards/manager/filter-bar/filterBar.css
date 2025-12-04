@@ -1,10 +1,11 @@
 
 
-/* filterTable.css */
+/* Base table styling for filter tables */
 .filter-table {
   width: 100%;
   border-collapse: collapse;
   margin: 10px 0;
+  table-layout: fixed; /* ensures cells don't expand too much */
 }
 
 .filter-table th,
@@ -12,29 +13,54 @@
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
+  word-wrap: break-word; /* prevents long content from spilling */
 }
 
 .filter-table th {
   background-color: #f4f4f4;
 }
 
+/* Filter row inputs */
 .filter-row input,
 .filter-row select {
   width: 90%;
   padding: 3px 5px;
   margin: 2px 0;
+  box-sizing: border-box;
 }
 
+/* Number & date range inputs */
 .number-filter input,
 .date-filter input {
   width: 45%;
   margin-right: 5%;
+  box-sizing: border-box;
 }
 
+.number-filter input:last-child,
+.date-filter input:last-child {
+  margin-right: 0;
+}
+
+/* No data row */
 .no-data {
   text-align: center;
   padding: 10px;
   color: #666;
+}
+
+/* =========================
+   Client History specific adjustments
+   ========================= */
+.manager-window-container .filter-table-container {
+  width: 100%;
+  overflow-x: auto; /* horizontal scroll if table is too wide */
+}
+
+/* Smaller filter inputs for Client History */
+.manager-window-container .filter-row input,
+.manager-window-container .filter-row select {
+  width: 95%;
 }
 
 

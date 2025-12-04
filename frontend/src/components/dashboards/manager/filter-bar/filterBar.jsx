@@ -79,7 +79,7 @@ const FilterTable = ({ columns, data, onRowClick }) => {
 
   return (
     <div className="filter-table-container">
-      <table>
+      <table className="filter-table">
         <thead>
           <tr>
             {columns.map(col => (

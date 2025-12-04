@@ -23,9 +23,7 @@ const ClientList = () => {
 
   const columns = [
     { key: "name", label: "Client Name", filterType: "text" },
-    { key: "email", label: "Email", filterType: "text" },
     { key: "phone", label: "Phone", filterType: "text" },
-    { key: "totalRequests", label: "Total Requests", filterType: "number" },
     { key: "completedRequests", label: "Completed", filterType: "number" },
     { key: "rejectedRequests", label: "Rejected", filterType: "number" },
   ];
@@ -44,11 +42,13 @@ const ClientList = () => {
     <div className="manager-window-container">
       <h2>Client History</h2>
 
-      <FilterTable
-        columns={columns}
-        data={clients}
-        onRowClick={(client) => setSelectedClient(client)} // open modal
-      />
+      <div className="filter-table-container" >
+        <FilterTable
+          columns={columns}
+          data={clients}
+          onRowClick={(client) => setSelectedClient(client)} // open modal
+        />
+      </div>
 
       {selectedClient && (
         <SubWindowModal
