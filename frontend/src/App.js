@@ -1,6 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
-import { useState } from 'react';
+import { AuthProvider } from './context/AuthProvider.jsx';
 
 import './App.css';
 
@@ -11,36 +11,42 @@ import Login from './components/login/login.jsx';
 import Register from './components/register/register.jsx';
 import ClientDashboard from './components/dashboards/client/client.jsx';
 import ManagerDashboard from './components/dashboards/manager/manager.jsx';
+import ProtectedRoute from './components/protected-route/protectedRoute.jsx';
 
 
 function App() {
-  // for tracking logged in status
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState("");
-
 
   return (
     <div className="App">
 
-      <Nav 
-        isLoggedIn={isLoggedIn} 
-        setIsLoggedIn={setIsLoggedIn} 
-        userRole={userRole}
-      />
+      <AuthProvider>
+        <Nav />
+        <Routes>
+          {/* Home, Login, Register apart of navbar */}
+          <Route path='/' element={<Home />} />
+          <Route path='/login' element={<Login />} />
+          <Route path='/register' element={<Register />} />
 
-      <Routes>
-        {/* Home, Login, Register apart of navbar */}
-        <Route path='/' element={<Home />} />
-        <Route path='/login' element={<Login setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole}/>} />
-        <Route path='/register' element={<Register setIsLoggedIn={setIsLoggedIn} setUserRole={setUserRole}/>} />
+          {/* client and manager dashboards under protected routes */}
+          <Route 
+            path='/client-dashboard'
+            element={
+              <ProtectedRoute requiredRole="client" >
+                <ClientDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* client and manager dashboards currently accessible by two buttons in login */}
-        <Route path='/client-dashboard' element={<ClientDashboard />}/>
-        <Route path='/manager-dashboard' element={<ManagerDashboard />} />
-        
-
-      </Routes>
-  
+          <Route 
+            path='/manager-dashboard'
+            element={
+              <ProtectedRoute requiredRole="manager" >
+                <ManagerDashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
     </div>
   );
 }
