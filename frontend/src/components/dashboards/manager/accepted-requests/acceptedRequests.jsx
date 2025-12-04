@@ -26,7 +26,7 @@ const AcceptedRequests = () => {
     { label: "Client Name", key: "clientName", filterType: "text" },
     { label: "Service Type", key: "serviceType", filterType: "text" },
     { label: "Completion Date", key: "completionDate", filterType: "date" },
-    { label: "Quoted Price", key: "managerQuote", filterType: "text" },
+    { label: "Quoted Price", key: "managerQuote", filterType: "number" },
   ];
 
   // Modal fields show full details

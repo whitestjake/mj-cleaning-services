@@ -25,7 +25,7 @@ const AwaitingCompletion = () => {
     { label: "Client Name", key: "clientName", filterType: "text" },
     { label: "Service Type", key: "serviceType", filterType: "text" },
     { label: "Scheduled Time", key: "scheduledTime", filterType: "date" },
-    { label: "Quoted Price", key: "managerQuote", filterType: "text" },
+    { label: "Quoted Price", key: "managerQuote", filterType: "number" },
   ];
 
   // Modal fields show all relevant details

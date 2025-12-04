@@ -1,11 +1,18 @@
 
 
-/* Base table styling for filter tables */
+/* Container for table and filters */
+.filter-table-container {
+  width: 100%;
+  overflow-x: auto; /* horizontal scroll if table is too wide */
+  margin-bottom: 15px;
+}
+
+/* Base table styling */
 .filter-table {
   width: 100%;
   border-collapse: collapse;
   margin: 10px 0;
-  table-layout: fixed; /* ensures cells don't expand too much */
+  table-layout: fixed; /* ensures columns don’t stretch past container */
 }
 
 .filter-table th,
@@ -13,55 +20,81 @@
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
-  word-wrap: break-word; /* prevents long content from spilling */
+  word-wrap: break-word; /* wrap text if needed */
 }
 
 .filter-table th {
   background-color: #f4f4f4;
+  position: relative;
+  vertical-align: top;
+  font-weight: bold;
 }
 
-/* Filter row inputs */
-.filter-row input,
-.filter-row select {
-  width: 90%;
-  padding: 3px 5px;
-  margin: 2px 0;
+/* Text filter inputs */
+.filter-row input[type="text"] {
+  width: 100%;
+  padding: 4px 6px;
   box-sizing: border-box;
 }
 
-/* Number & date range inputs */
-.number-filter input,
-.date-filter input {
-  width: 45%;
-  margin-right: 5%;
+/* Number filters stacked vertically */
+.number-filter {
+  display: flex;
+  flex-direction: column;
+}
+
+.number-filter input {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
   box-sizing: border-box;
 }
 
+/* Date filters stacked vertically */
+.date-range-filter {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-range-filter input {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* Remove bottom margin for last input in each filter */
 .number-filter input:last-child,
-.date-filter input:last-child {
-  margin-right: 0;
+.date-range-filter input:last-child {
+  margin-bottom: 0;
 }
 
-/* No data row */
+/* Filter row spacing */
+.filter-row th {
+  padding: 6px 8px;
+}
+
+/* No data message */
 .no-data {
   text-align: center;
   padding: 10px;
   color: #666;
 }
 
-/* =========================
-   Client History specific adjustments
-   ========================= */
-.manager-window-container .filter-table-container {
-  width: 100%;
-  overflow-x: auto; /* horizontal scroll if table is too wide */
+/* Make table scrollable on small screens */
+.manager-window-container {
+  overflow-x: auto;
+  padding-bottom: 10px;
 }
 
-/* Smaller filter inputs for Client History */
-.manager-window-container .filter-row input,
-.manager-window-container .filter-row select {
-  width: 95%;
+/* Responsive adjustments for stacked filters */
+@media (max-width: 768px) {
+  .filter-row input,
+  .filter-row select {
+    width: 100%;
+  }
 }
+
 
 
 

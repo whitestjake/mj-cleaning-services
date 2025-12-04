@@ -23,7 +23,7 @@ const PendingResponses = () => {
   // Table only shows snapshot
   const columns = [
     { label: "Client Name", key: "clientName", filterType: "text" },
-    { label: "Manager Quote", key: "managerQuote", filterType: "text" },
+    { label: "Manager Quote", key: "managerQuote", filterType: "number" },
     { label: "Scheduled Time", key: "scheduledTime", filterType: "date" },
   ];
 
