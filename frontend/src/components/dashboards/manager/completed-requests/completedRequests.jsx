@@ -77,7 +77,7 @@ const CompletedRequests = ({ completedRequests }) => {
           </thead>
 
           <tbody>
-            {/* replace with completedRequests later */}
+
             {sampleCompletedRequests.map((req) => (
               <tr key={req.id} onClick={() => setSelectedRequest(req)}>
                 <td>{req.clientName}</td>

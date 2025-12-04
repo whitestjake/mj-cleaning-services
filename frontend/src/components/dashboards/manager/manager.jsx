@@ -12,6 +12,7 @@ import "./manager.css";
 const ManagerDashboard = () => {
   const [activeTab, setActiveTab] = useState("new");
   const [pendingRequests, setPendingRequests] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [completedRequests, setCompletedRequests] = useState([]);
 
   const moveToPending = (data) => {

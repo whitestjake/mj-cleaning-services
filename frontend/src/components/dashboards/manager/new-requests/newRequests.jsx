@@ -1,36 +1,57 @@
 
 
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
 
 import '../managerWindow.css';
 
 const NewRequests = () => {
-  const [requests, setRequests] = useState([
-    {
-      id: 1,
-      clientName: "John Doe",
-      serviceType: "Basic Cleaning",
-      rooms: 3,
-      outdoor: false,
-      address: "123 Main St",
-      notes: "Please bring eco-friendly materials",
-      photos: [],
-    },
-    {
-      id: 2,
-      clientName: "Sarah Connor",
-      serviceType: "Deep Clean",
-      rooms: 5,
-      outdoor: true,
-      address: "455 Maple Ave",
-      notes: "",
-      photos: [],
-    },
-  ]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      const response = await fetch('/api/requests');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter for pending requests only and format for component
+        const pendingRequests = data
+          .filter(req => req.state === 'pending')
+          .map(req => ({
+            id: req.request_id,
+            clientName: `${req.first_name} ${req.last_name}`,
+            serviceType: req.serviceType,
+            rooms: req.numRooms,
+            outdoor: req.addOutdoor,
+            address: req.service_address || 'Not specified',
+            notes: req.note || '',
+            photos: []
+            email: req.email,
+            phone: req.phone_number,
+            budget: req.clientBudget,
+            serviceDate: req.serviceDate,
+            created_time: req.created_time
+          }));
+        setRequests(pendingRequests);
+      } else {
+        setError('Failed to load requests');
+      }
+    } catch (err) {
+      setError('Network error');
+      console.error('Error fetching requests:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // eslint-disable-next-line no-unused-vars
   const [pendingResponses, setPendingResponses] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
@@ -63,7 +84,7 @@ const NewRequests = () => {
 
     setPendingResponses((prev) => [...prev, updated]);
 
-    // remove from new requests
+
     setRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
 
     setSelectedRequest(null);
@@ -73,9 +94,13 @@ const NewRequests = () => {
   // --- Modal field configurations ---
   const modalFields = [
     { label: "Client Name", key: "clientName" },
+    { label: "Email", key: "email" },
+    { label: "Phone", key: "phone" },
     { label: "Service Type", key: "serviceType" },
     { label: "Rooms", key: "rooms" },
     { label: "Outdoor Service", key: "outdoor", render: (v) => (v ? "Yes" : "No") },
+    { label: "Service Date", key: "serviceDate", render: (v) => v ? new Date(v).toLocaleDateString() : 'Not specified' },
+    { label: "Budget", key: "budget", render: (v) => v ? `$${v}` : 'No limit' },
     { label: "Address", key: "address" },
     { label: "Client Notes", key: "notes" },
 
@@ -116,6 +141,9 @@ const NewRequests = () => {
     },
   ];
 
+  if (loading) return <div className="manager-window-container"><h2>Loading requests...</h2></div>;
+  if (error) return <div className="manager-window-container"><h2>Error: {error}</h2></div>;
+
   return (
     <div className="manager-window-container">
       <h2>New Cleaning Requests</h2>
@@ -126,6 +154,8 @@ const NewRequests = () => {
             <th>Client</th>
             <th>Service</th>
             <th>Rooms</th>
+            <th>Date Requested</th>
+            <th>Budget</th>
             <th>Outdoor</th>
           </tr>
         </thead>
@@ -143,14 +173,16 @@ const NewRequests = () => {
               <td>{req.clientName}</td>
               <td>{req.serviceType}</td>
               <td>{req.rooms}</td>
+              <td>{new Date(req.created_time).toLocaleDateString()}</td>
+              <td>{req.budget ? `$${req.budget}` : 'No limit'}</td>
               <td>{req.outdoor ? "Yes" : "No"}</td>
             </tr>
           ))}
 
           {requests.length === 0 && (
             <tr>
-              <td colSpan="4" style={{ textAlign: "center", padding: "20px" }}>
-                No new requests.
+              <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
+                No new requests at this time.
               </td>
             </tr>
           )}

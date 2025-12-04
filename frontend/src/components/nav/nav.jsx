@@ -5,10 +5,16 @@ import { Link, useNavigate } from 'react-router-dom';
 const Navbar = ({ isLoggedIn, setIsLoggedIn, userRole }) => {
   const navigate = useNavigate();
 
-  const handleSignOut = () => {
-    setIsLoggedIn(false);
-    navigate('/');
-  }
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setIsLoggedIn(false);
+      navigate('/');
+    }
+  };
 
   const goToDashboard = () => {
     if (userRole === "client") navigate('/client-dashboard')

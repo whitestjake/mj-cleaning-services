@@ -1,8 +1,8 @@
 -- Create database if it does not exist
-CREATE DATABASE IF NOT EXISTS `mj-cleaning-services`;
+CREATE DATABASE IF NOT EXISTS `mj_cleaning_services`;
 
 -- Use the created database
-USE `mj-cleaning-services`;
+USE `mj_cleaning_services`;
 
 
 -- Create admins table if it does not exist
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
     time DATETIME,
 
     budget DECIMAL(10,2),
+    addOutdoor BOOLEAN DEFAULT FALSE,
     note TEXT,
     state VARCHAR(50),              -- pending, rejected, quoted, accepted, cancelled
 

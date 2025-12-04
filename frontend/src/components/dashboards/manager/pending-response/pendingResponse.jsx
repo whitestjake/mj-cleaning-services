@@ -73,7 +73,7 @@ const PendingResponses = ({ pendingRequests }) => {
           </thead>
 
           <tbody>
-            {/* replace with pendingRequests later */}
+
             {samplePendingResponses.map((req) => (
               <tr
                 key={req.id}

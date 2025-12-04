@@ -1,213 +1,228 @@
-
-
 import { useState } from 'react';
-import './requestForm.css';
+import { Form, Input, Button, Select, DatePicker, Checkbox, Upload, Alert, Row, Col, Card, Typography } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
+
+const { TextArea } = Input;
+const { Option } = Select;
+const { Text } = Typography;
 
 const RequestForm = () => {
-
-    const [formData, setFormData] = useState({
-        serviceType: 'Basic',
-        numRooms: '',
-        serviceDate: '',
-        serviceAddress: '',
-        clientBudget: '',
-        addOutdoor: false,
-        photos: []
-    });
+    const [form] = Form.useForm();
+    const [submitting, setSubmitting] = useState(false);
+    const [message, setMessage] = useState('');
+    const [messageType, setMessageType] = useState('');
+    const [photos, setPhotos] = useState([]);
+    const [estimatedCost, setEstimatedCost] = useState(0);
 
     const services = ['Basic', 'Deep Clean', 'Move Out'];
-    const yardServices = 40;
-    const outdoorServices = 40;
-    const prices = {
+    
+    // Pricing structure
+    const servicePricing = {
         'Basic': 50,
         'Deep Clean': 70,
         'Move Out': 60
     };
+    
+    const outdoorCost = 40; // per hour
 
-    let estimate = formData.numRooms * prices[formData.serviceType];
-    if (formData.addYard) estimate += yardServices;
-    if (formData.addOutdoor) estimate += outdoorServices;
-
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+    // Calculate estimated cost when form values change
+    const calculateEstimate = () => {
+        const formValues = form.getFieldsValue();
+        const { serviceType, numRooms, addOutdoor } = formValues;
+        
+        if (serviceType && numRooms) {
+            const basePrice = servicePricing[serviceType] || 0;
+            const roomCost = basePrice * parseInt(numRooms);
+            const extraCost = addOutdoor ? outdoorCost : 0;
+            const total = roomCost + extraCost;
+            setEstimatedCost(total);
+        } else {
+            setEstimatedCost(0);
+        }
     };
 
-    // file access
-    const handlePhotoUpload = (e) => {
-        const files = Array.from(e.target.files);
+    const handleFormChange = () => {
+        calculateEstimate();
+    };
 
-        const total = formData.photos.length + files.length;
-        if (total > 5) {
-            alert("You can only upload **up to 5 photos total**.");
+    const handlePhotoChange = ({ fileList }) => {
+        if (fileList.length > 5) {
+            setMessage('You can only upload up to 5 photos.');
+            setMessageType('warning');
             return;
         }
-
-        setFormData(prev => ({
-            ...prev,
-            photos: [...prev.photos, ...files]
-        }));
+        setPhotos(fileList);
     };
 
-    const removePhoto = (index) => {
-        setFormData(prev => ({
-            ...prev,
-            photos: prev.photos.filter((_, i) => i !== index)
-        }));
-    };
+    const handleSubmit = async (values) => {
+        setSubmitting(true);
+        setMessage('');
+        
+        try {
+            const formData = new FormData();
 
-    const handleSubmit = async () => {
-        const form = new FormData();
+            // Add form fields
+            Object.keys(values).forEach(key => {
+                if (key !== 'photos') {
+                    formData.append(key, values[key] || '');
+                }
+            });
 
-        // Append text fields
-        for (const key in formData) {
-            if (key !== "photos") {
-                form.append(key, formData[key]);
+            // Add photos
+            photos.forEach((file) => {
+                formData.append('photos', file.originFileObj || file);
+            });
+
+            const response = await fetch('/submit', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                setMessage('Request submitted successfully!');
+                setMessageType('success');
+                form.resetFields();
+                setPhotos([]);
+                setEstimatedCost(0);
+            } else {
+                setMessage(data.error || 'Failed to submit request');
+                setMessageType('error');
             }
+        } catch (error) {
+            setMessage('Network error. Please try again.');
+            setMessageType('error');
+        } finally {
+            setSubmitting(false);
         }
-
-        // Append photos
-        formData.photos.forEach((photo, i) => {
-            form.append("photos", photo);
-        });
-
-        const response = await fetch('/submit', {
-            method: "POST",
-            body: form
-        });
-
-        const data = await response.json();
-        console.log(data);
     };
-
-// for the backend later
-// import multer from 'multer';
-// const upload = multer({ dest: 'uploads/' });
-
-// app.post('/submit', upload.array('photos', 5), (req, res) => {
-//     console.log(req.body);       // text inputs
-//     console.log(req.files);      // uploaded photos
-
-//     res.json({ message: "OK" });
-// });
-
-
 
     return (
-        <div className='client-dashboard-container'>
+        <div>
+            {message && (
+                <Alert 
+                    message={message} 
+                    type={messageType} 
+                    closable
+                    style={{ marginBottom: '16px' }}
+                    onClose={() => setMessage('')}
+                />
+            )}
 
-            <div className='client-request-container'>
-                <h3>Service Request</h3>
-
-                {/* service selector bar */}
-                <div className='service-selector'>
-                    <div 
-                        className='selector-highlight'
-                        style={{
-                            transform: `translateX(${services.indexOf(formData.serviceType) * 100}%)`
-                        }}
-                    />
-                    {services.map(service => (
-                        <button
-                            key={service}
-                            className={formData.serviceType === service ? "selected" : ""}
-                            onClick={() => setFormData(prev => ({ ...prev, serviceType: service }))}
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+                onValuesChange={handleFormChange}
+                size="small"
+            >
+                <Row gutter={8}>
+                    <Col xs={24} sm={8}>
+                        <Form.Item
+                            name="serviceType"
+                            label="Service"
+                            rules={[{ required: true }]}
+                            initialValue="Basic"
+                            style={{ marginBottom: '12px' }}
                         >
-                            {service}
-                        </button>
-                    ))}
-                </div>
+                            <Select size="small">
+                                {services.map(service => (
+                                    <Option key={service} value={service}>{service}</Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={8}>
+                        <Form.Item
+                            name="numRooms"
+                            label="Rooms"
+                            rules={[{ required: true }]}
+                            style={{ marginBottom: '12px' }}
+                        >
+                            <Input type="number" min={1} placeholder="1" size="small" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={8}>
+                        <Form.Item
+                            name="serviceDate"
+                            label="Date"
+                            rules={[{ required: true }]}
+                            style={{ marginBottom: '12px' }}
+                        >
+                            <DatePicker style={{ width: '100%' }} size="small" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={12}>
+                        <Form.Item
+                            name="serviceAddress"
+                            label="Address"
+                            rules={[{ required: true }]}
+                            style={{ marginBottom: '12px' }}
+                        >
+                            <TextArea rows={1} placeholder="Service address" size="small" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={12}>
+                        <Form.Item name="clientBudget" label="Budget" style={{ marginBottom: '12px' }}>
+                            <Input placeholder="Optional" size="small" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={12}>
+                        <Form.Item name="addOutdoor" valuePropName="checked" style={{ marginBottom: '12px' }}>
+                            <Checkbox>Outdoor Cleaning (+$40/hr)</Checkbox>
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} sm={12}>
+                        <Form.Item label="Photos" style={{ marginBottom: '12px' }}>
+                            <Upload
+                                fileList={photos}
+                                onChange={handlePhotoChange}
+                                beforeUpload={() => false}
+                                multiple
+                                maxCount={5}
+                            >
+                                <Button icon={<UploadOutlined />} size="small">Upload</Button>
+                            </Upload>
+                        </Form.Item>
+                    </Col>
+                </Row>
 
 
-                {/* client input form */}
-                <div className='client-service-request'>
-                    <input
-                        type='text'
-                        name='serviceAddress'
-                        placeholder='street, city, state, zip'
-                        value={formData.serviceAddress}
-                        onChange={handleChange}
-                    />
+                {estimatedCost > 0 && (
+                    <Card size="small" style={{ margin: '12px 0', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <Text strong style={{ fontSize: '16px', color: '#52c41a' }}>
+                                Estimated Cost: ${estimatedCost}
+                            </Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                                * Final quote may vary based on specific requirements
+                            </Text>
+                        </div>
+                    </Card>
+                )}
 
-                    <label>Number of Rooms</label>
-                    <input
-                        type='number'
-                        name='numRooms'
-                        min='1'
-                        value={formData.numRooms}
-                        onChange={handleChange}
-                        placeholder={
-                            formData.serviceType === "Move Out"
-                            ? "Requires all rooms"
-                            : ""
-                        }
-                    />
 
-                    <label>Select Date</label>
-                    <input
-                        type='date'
-                        name='serviceDate'
-                        value={formData.serviceDate}
-                        onChange={handleChange}
-                    />
-
-                    <div>
-                        <label>
-                            <input
-                                type='checkbox'
-                                name='addOutdoor'
-                                checked={formData.addOutdoor}
-                                onChange={handleChange}
-                            />
-                            Add Outdoor Cleaning (+$40/hr)
-                        </label>
-                    </div>
-
-                    <label>Budget Constraints?</label>
-                    <input
-                        type='text'
-                        name='clientBudget'
-                        placeholder='"free" = surcharge'
-                        value={formData.clientBudget}
-                        onChange={handleChange}
-                    />
-
-                    <div className='service-estimate'>
-                        <p><strong>Estimated Cost:</strong> ${estimate}</p>
-                    </div>
-                </div>
-
-                <div className='client-photo-upload'>
-                    <h3>Upload Photos (max 5)</h3>
-
-                    <input
-                        type='file'
-                        accept='image/*'
-                        multiple
-                        onChange={handlePhotoUpload}
-                    />
-
-                    <div className="photo-preview-container">
-                        {formData.photos.map((photo, index) => (
-                            <div className='photo-preview' key={index}>
-                                <img src={URL.createObjectURL(photo)} alt="" />
-                                <button onClick={() => removePhoto(index)}>
-                                    Remove
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* NEW: submit button */}
-                <button className="submit-request-btn" onClick={handleSubmit}>
+                <Button 
+                    type="primary" 
+                    htmlType="submit" 
+                    loading={submitting}
+                    block
+                    size="small"
+                    style={{ marginTop: '8px' }}
+                >
                     Submit Request
-                </button>
-            </div>
+                </Button>
+            </Form>
+
+
         </div>
     );
 };
