@@ -35,6 +35,8 @@ const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
         return actions || null;
 
       case "completed":
+        return actions || null;
+        
       case "client":
       default:
         // No default actions

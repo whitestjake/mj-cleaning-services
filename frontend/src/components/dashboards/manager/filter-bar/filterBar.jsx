@@ -105,7 +105,12 @@ const FilterTable = ({ columns, data, onRowClick }) => {
           <tr>
             {columns.map((col, idx) => (
               <th key={`header-${idx}`} onClick={() => handleSort(col.key)}>
-                {col.label} {sortConfig?.key === col.key ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
+                {col.label}{" "}
+                {sortConfig?.key === col.key
+                  ? sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"
+                  : ""}
               </th>
             ))}
           </tr>
@@ -120,6 +125,7 @@ const FilterTable = ({ columns, data, onRowClick }) => {
                     placeholder="Filter..."
                   />
                 )}
+
                 {col.filterType === "number" && (
                   <div className="number-filter stacked-filter">
                     <input
@@ -136,6 +142,7 @@ const FilterTable = ({ columns, data, onRowClick }) => {
                     />
                   </div>
                 )}
+
                 {col.filterType === "date" && (
                   <div className="date-filter stacked-filter">
                     <input
@@ -154,12 +161,15 @@ const FilterTable = ({ columns, data, onRowClick }) => {
             ))}
           </tr>
         </thead>
+
         <tbody>
           {filteredData.length > 0 ? (
             filteredData.map((row, idx) => (
               <tr key={`row-${row.id ?? idx}`} onClick={() => onRowClick(row)}>
                 {columns.map((col, cidx) => (
-                  <td key={`cell-${row.id ?? idx}-${cidx}`}>{row[col.key]}</td>
+                  <td key={`cell-${row.id ?? idx}-${cidx}`}>
+                    {col.render ? col.render(row[col.key], row) : row[col.key]}
+                  </td>
                 ))}
               </tr>
             ))
@@ -177,5 +187,6 @@ const FilterTable = ({ columns, data, onRowClick }) => {
 };
 
 export default FilterTable;
+
 
 

@@ -95,6 +95,29 @@
   }
 }
 
+/* ============================
+   BADGES FOR PAID STATUS
+   ============================ */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-align: center;
+  color: white;
+  min-width: 70px;
+}
+
+.status-paid {
+  background-color: #3cb371; /* green */
+}
+
+.status-unpaid {
+  background-color: #d9534f; /* red */
+}
+
+
 
 
 

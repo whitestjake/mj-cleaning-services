@@ -5,7 +5,7 @@ let requestIdCounter = 1;
 const generateRequest = (overrides = {}) => {
   const quote = overrides.managerQuote !== undefined
     ? overrides.managerQuote
-    : Math.floor(Math.random() * 200) + 100; // numeric
+    : Math.floor(Math.random() * 200) + 100;
 
   const scheduled = overrides.scheduledTime || new Date(Date.now() + Math.floor(Math.random() * 7) * 86400000);
 
@@ -19,15 +19,18 @@ const generateRequest = (overrides = {}) => {
     serviceAddress: overrides.serviceAddress || "123 Main St, City, State",
     notes: overrides.notes || "Client notes here",
     managerQuote: quote,
-    scheduledTime: scheduled.toISOString().slice(0,16),
-    submittedDate: overrides.submittedDate || new Date(Date.now() - Math.floor(Math.random() * 3) * 86400000).toISOString().slice(0,16),
+    scheduledTime: scheduled.toISOString().slice(0, 16),
+    submittedDate: overrides.submittedDate || new Date(Date.now() - Math.floor(Math.random() * 3) * 86400000).toISOString().slice(0, 16),
     managerNote: overrides.managerNote || "Manager notes here",
     completionDate: overrides.completionDate || null,
     status: overrides.status || null,
     photos: overrides.photos || [],
+
+    // ⭐ NEW FIELDS
+    isPaid: overrides.isPaid ?? false,
+    negotiationHistory: overrides.negotiationHistory || [],
   };
 };
-
 
 const requestsDB = {
   new: Array.from({ length: 5 }, () => generateRequest()),
@@ -35,8 +38,11 @@ const requestsDB = {
   awaiting_completion: Array.from({ length: 3 }, () => generateRequest()),
   completed: Array.from({ length: 2 }, () => {
     const r = generateRequest();
-    r.completionDate = new Date(Date.now() - Math.floor(Math.random() * 7) * 86400000).toISOString().slice(0,10);
+    r.completionDate = new Date(Date.now() - Math.floor(Math.random() * 7) * 86400000)
+      .toISOString()
+      .slice(0, 10);
     r.status = "Completed";
+    r.isPaid = false; // unpaid by default
     return r;
   }),
 };
@@ -73,7 +79,7 @@ export const RequestsAPI = {
 
   sendQuote: async (id, updates) => {
     for (const status of ["new", "pending_response"]) {
-      const req = requestsDB[status].find(r => r.id === id);
+      const req = requestsDB[status].find((r) => r.id === id);
       if (req) {
         Object.assign(req, updates);
         return req;
@@ -91,18 +97,29 @@ export const RequestsAPI = {
 
   completeRequest: async (id) => {
     for (const status of ["awaiting_completion"]) {
-      const index = requestsDB[status].findIndex(r => r.id === id);
+      const index = requestsDB[status].findIndex((r) => r.id === id);
       if (index !== -1) {
         const [req] = requestsDB[status].splice(index, 1);
-        req.completionDate = new Date().toISOString().slice(0,10);
+        req.completionDate = new Date().toISOString().slice(0, 10);
         req.status = "Completed";
-        if (!requestsDB.completed) requestsDB.completed = [];
+        req.isPaid = false; // unpaid when completed
         requestsDB.completed.push(req);
         return req;
       }
     }
-  }
+  },
+
+  // Mark a completed request as paid
+  markAsPaid: async (id) => {
+    const req = requestsDB.completed.find((r) => r.id === id);
+    if (req) {
+      req.isPaid = true;
+    }
+    return req;
+  },
 };
+
+
 
 
 

@@ -13,13 +13,25 @@ const AcceptedRequests = () => {
   const [completed, setCompleted] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
-  useEffect(() => {
-    const fetchCompleted = async () => {
+  const fetchCompleted = async () => {
       const data = await RequestsAPI.getByStatus("completed");
       setCompleted(data);
-    };
+  };
+
+  useEffect(() => {
     fetchCompleted();
   }, []);
+
+  const handleMarkAsPaid = async (id) => {
+    await RequestsAPI.markAsPaid(id);
+    
+    // refresh completed requests to update table & modal
+    const data = await RequestsAPI.getByStatus('completed');
+    setCompleted(data);
+
+    // upate modal state if open
+    setSelectedRequest((prev) => (prev ? { ...prev, isPaid: true } : null));
+  };
 
   // Table snapshot columns
   const columns = [
@@ -27,6 +39,16 @@ const AcceptedRequests = () => {
     { label: "Service Type", key: "serviceType", filterType: "text" },
     { label: "Completion Date", key: "completionDate", filterType: "date" },
     { label: "Quoted Price", key: "managerQuote", filterType: "number" },
+    { label: "Paid Status", 
+      key: "isPaid", 
+      filterType: "text", 
+      render: (val) => 
+        val ? (
+          <span className="status-badge status-paid">PAID</span>
+        ) : (
+          <span className='status-badge status-unpaid'>UNPAID</span>
+        )
+    },
   ];
 
   // Modal fields show full details
@@ -42,6 +64,7 @@ const AcceptedRequests = () => {
     { label: "Quoted Price", key: "managerQuote" },
     { label: "Manager Note", key: "managerNote" },
     { label: "Status", key: "status" },
+    { label: "Payment Status", key: "isPaid", render: (val) => (val ? "PAID" : "UNPAID") },
     { label: "Photos", key: "photos", render: (photos) =>
         photos && photos.length > 0
           ? `${photos.length} photo(s) uploaded`
@@ -53,7 +76,11 @@ const AcceptedRequests = () => {
     <div className="manager-window-container">
       <h2>Completed Requests</h2>
 
-      <FilterTable columns={columns} data={completed} onRowClick={setSelectedRequest} />
+      <FilterTable 
+        columns={columns}
+        data={completed} 
+        onRowClick={setSelectedRequest} 
+      />
 
       {selectedRequest && (
         <SubWindowModal
@@ -62,8 +89,19 @@ const AcceptedRequests = () => {
           fields={modalFields}
           onClose={() => setSelectedRequest(null)}
           type="completed"
+          actions={
+            !selectedRequest.isPaid && (
+              <button
+                className='mark-paid-btn'
+                onClick={() => handleMarkAsPaid(selectedRequest.id)}
+              >
+                Mark as Paid
+              </button>
+            )
+          }
         />
       )}
+      
     </div>
   );
 };
