@@ -24,14 +24,17 @@ const AcceptedRequests = () => {
 
   const handleMarkAsPaid = async (id) => {
     await RequestsAPI.markAsPaid(id);
-    
-    // refresh completed requests to update table & modal
-    const data = await RequestsAPI.getByStatus('completed');
-    setCompleted(data);
 
-    // upate modal state if open
-    setSelectedRequest((prev) => (prev ? { ...prev, isPaid: true } : null));
+    // update frontend state immediately
+    setCompleted(prev =>
+      prev.map(r => (r.id === id ? { ...r, isPaid: true } : r))
+    );
+
+    setSelectedRequest(prev =>
+      prev && prev.id === id ? { ...prev, isPaid: true } : prev
+    );
   };
+
 
   // Table snapshot columns
   const columns = [
@@ -101,7 +104,7 @@ const AcceptedRequests = () => {
           }
         />
       )}
-      
+
     </div>
   );
 };
