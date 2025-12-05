@@ -17,17 +17,20 @@ const NewRequests = () => {
   const [managerTime, setManagerTime] = useState("");
   const [managerNotes, setManagerNotes] = useState("");
 
+  // Fetch new requests from API
   useEffect(() => {
     RequestsAPI.getByStatus("new").then(setRequests);
   }, []);
 
+  // Open modal
   const openModal = (req) => {
     setSelectedRequest(req);
-    setManagerQuote("");
-    setManagerTime("");
-    setManagerNotes("");
+    setManagerQuote(req.managerQuote || "");
+    setManagerTime(req.scheduledTime || "");
+    setManagerNotes(req.managerNote || "");
   };
 
+  // Submit manager response
   const handleSubmitResponse = async () => {
     if (!managerQuote || !managerTime) {
       alert("Please enter a quote and time window");
@@ -51,7 +54,7 @@ const NewRequests = () => {
     alert("Response sent to client!");
   };
 
-  // Table snapshot: only key info
+  // Table columns for snapshot
   const columns = [
     { label: "Client Name", key: "clientName", filterType: "text" },
     { label: "Service", key: "serviceType", filterType: "text" },
@@ -65,12 +68,14 @@ const NewRequests = () => {
     { label: "Phone", key: "phone" },
     { label: "Service Type", key: "serviceType" },
     { label: "Number of Rooms", key: "numRooms" },
-    { label: "Outdoor Service", key: "addOutdoor", render: v => v ? "Yes" : "No" },
+    { label: "Outdoor Service", key: "addOutdoor", render: v => (v ? "Yes" : "No") },
     { label: "Address", key: "serviceAddress" },
     { key: "submittedDate", label: "Submitted Date", filterType: "date" },
-    { label: "Requested Date/Time", key: "scheduledTime", filterType: "text", render: (val) => val || "-" },
+    { label: "Requested Date/Time", key: "scheduledTime", render: (val) => val || "-" },
     { label: "Client Notes", key: "notes" },
     { label: "Client Budget", key: "clientBudget" },
+
+    // Manager Quote Inputs
     {
       label: "Quote",
       key: "managerQuote",
@@ -92,10 +97,32 @@ const NewRequests = () => {
         <textarea value={managerNotes} onChange={(e) => setManagerNotes(e.target.value)} placeholder="Optional notes..." />
       )
     },
+
+    // Conditional Client Adjustment for renegotiated quotes
+    ...(selectedRequest?.isRenegotiation
+      ? [
+          // Conditional Client Adjustment for renegotiated quotes
+          {
+            label: "Client Adjusted Quote",
+            key: "clientAdjustment",
+            render: (val, data) =>
+              data.isRenegotiation && val
+                ? `Price: $${val.price}, Scheduled Time: ${val.time}${val.note ? `, Note: ${val.note}` : ""}`
+                : null
+          }
+        ]
+      : []),
+
+    // Photos
     {
       label: "Photos",
       key: "photos",
-      render: (photos) => photos?.length ? photos.map((p, i) => <img key={i} src={typeof p === "string" ? p : URL.createObjectURL(p)} alt="" style={{ width: 60, marginRight: 5 }} />) : "-"
+      render: (photos) =>
+        photos?.length
+          ? photos.map((p, i) => (
+              <img key={i} src={typeof p === "string" ? p : URL.createObjectURL(p)} alt="" style={{ width: 60, marginRight: 5 }} />
+            ))
+          : "-"
     }
   ];
 
@@ -103,6 +130,7 @@ const NewRequests = () => {
     <div className="manager-window-container">
       <h2>New Cleaning Requests</h2>
       <FilterTable columns={columns} data={requests} onRowClick={openModal} />
+
       {selectedRequest && (
         <SubWindowModal
           title="Respond to Client"
