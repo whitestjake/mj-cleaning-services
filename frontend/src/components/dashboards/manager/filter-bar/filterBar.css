@@ -1,0 +1,123 @@
+
+
+/* Container for table and filters */
+.filter-table-container {
+  width: 100%;
+  overflow-x: auto; /* horizontal scroll if table is too wide */
+  margin-bottom: 15px;
+}
+
+/* Base table styling */
+.filter-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  table-layout: fixed; /* ensures columns don’t stretch past container */
+}
+
+.filter-table th,
+.filter-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  word-wrap: break-word; /* wrap text if needed */
+}
+
+.filter-table th {
+  background-color: #f4f4f4;
+  position: relative;
+  vertical-align: top;
+  font-weight: bold;
+}
+
+/* Text filter inputs */
+.filter-row input[type="text"] {
+  width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* Number filters stacked vertically */
+.number-filter {
+  display: flex;
+  flex-direction: column;
+}
+
+.number-filter input {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* Date filters stacked vertically */
+.date-range-filter {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-range-filter input {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* Remove bottom margin for last input in each filter */
+.number-filter input:last-child,
+.date-range-filter input:last-child {
+  margin-bottom: 0;
+}
+
+/* Filter row spacing */
+.filter-row th {
+  padding: 6px 8px;
+}
+
+/* No data message */
+.no-data {
+  text-align: center;
+  padding: 10px;
+  color: #666;
+}
+
+/* Make table scrollable on small screens */
+.manager-window-container {
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+/* Responsive adjustments for stacked filters */
+@media (max-width: 768px) {
+  .filter-row input,
+  .filter-row select {
+    width: 100%;
+  }
+}
+
+/* ============================
+   BADGES FOR PAID STATUS
+   ============================ */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-align: center;
+  color: white;
+  min-width: 70px;
+}
+
+.status-paid {
+  background-color: #3cb371; /* green */
+}
+
+.status-unpaid {
+  background-color: #d9534f; /* red */
+}
+
+
+
+
+

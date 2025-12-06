@@ -1,24 +1,17 @@
 
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthProvider.jsx';
 
 
-const Navbar = ({ isLoggedIn, setIsLoggedIn, userRole }) => {
+const Navbar = () => {
+
+  const {isLoggedIn, user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignOut = async () => {
-    try {
-      await fetch('/api/logout', { method: 'POST' });
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      setIsLoggedIn(false);
-      navigate('/');
-    }
-  };
-
   const goToDashboard = () => {
-    if (userRole === "client") navigate('/client-dashboard')
-    if (userRole === "manager") navigate('/manager-dashboard')
+    if (!user) return;
+    if (user.role === "client") navigate('/client-dashboard')
+    if (user.role === "manager") navigate('/manager-dashboard')
   }
 
     return (
@@ -47,7 +40,7 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, userRole }) => {
               <li>
                 <button 
                   id='signout-btn' 
-                  onClick={handleSignOut}
+                  onClick={() => { logout(); navigate('/'); }}
                 >
                   Sign Out
                 </button>

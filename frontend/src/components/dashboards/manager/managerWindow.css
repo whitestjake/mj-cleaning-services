@@ -3,18 +3,19 @@
 
 /* Base table styling for all manager tables */
 .manager-window-container table {
-  width: auto; /* fit table content */
-  max-width: 100%; /* don't exceed container */
-  margin: 0 auto 20px; /* center horizontally and add bottom spacing */
-  border-collapse: separate; /* allow rounded corners */
-  border-spacing: 0; /* remove extra spacing */
+  width: auto;       /* full width of container */
+  max-width: 100%;   /* never exceed container */
+  table-layout: fixed; /* ensures columns wrap/truncate instead of growing */
+  margin: 0 auto 20px;
+  border-collapse: separate;
+  border-spacing: 0;
   font-family: Arial, sans-serif;
   text-align: left;
-  display: table; /* proper table layout */
-  border-radius: 10px; /* rounded corners */
-  overflow: hidden; /* clip table corners */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* subtle shadow */
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
+
 
 /* Table headers */
 .manager-window-container th {
@@ -54,6 +55,46 @@
 .manager-window-container {
   overflow-x: auto; /* horizontal scroll for narrow screens */
   padding-bottom: 10px; /* space for scrollbar */
+}
+
+.mark-paid-btn {
+  padding: 6px 12px;
+  background-color: #3cb371; /* green */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.mark-paid-btn:hover {
+  background-color: #2e8b57;
+}
+
+.mark-paid-btn,
+.revise-btn {
+  margin-right: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.revise-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.revise-form input,
+.revise-form textarea {
+  width: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.revise-form button {
+  padding: 6px 12px;
+  cursor: pointer;
 }
 
 
