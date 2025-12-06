@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Layout, Card, Form, Input, Button, Alert, Typography, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, HomeOutlined, UserAddOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { useAuth } from '../../context/AuthProvider.jsx';
 
 const { Content } = Layout;
 const { Title } = Typography;
 
-const Register = ({ setIsLoggedIn, setUserRole }) => {
+const Register = () => {
+    const { register } = useAuth();
     const navigate = useNavigate();
     const [form] = Form.useForm();
     const [error, setError] = useState('');
@@ -17,42 +19,12 @@ const Register = ({ setIsLoggedIn, setUserRole }) => {
         setError('');
 
         try {
-            const response = await fetch('/api/clients', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values)
-            });
+            const response = await register(values);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                // After successful registration, try to log in
-                const loginResponse = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: values.email, 
-                        password: values.password 
-                    })
-                });
-
-                if (loginResponse.ok) {
-                    const loginData = await loginResponse.json();
-                    setIsLoggedIn(true);
-                    setUserRole(loginData.role);
-                    
-                    if (loginData.role === 'client') {
-                        navigate('/client-dashboard');
-                    } else if (loginData.role === 'manager') {
-                        navigate('/manager-dashboard');
-                    }
-                } else {
-                    // Registration succeeded but auto-login failed, redirect to login
-                    navigate('/login');
-                }
-            } else {
-                setError(data.error || 'Registration failed');
+            if (!response.success) {
+                setError(response.message);
             }
+            // If successful, AuthProvider will handle navigation
         } catch (err) {
             setError('Network error. Please try again.');
         } finally {
