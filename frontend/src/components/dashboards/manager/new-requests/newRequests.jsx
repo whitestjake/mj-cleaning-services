@@ -62,7 +62,10 @@ const NewRequests = () => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Negotiation history fetched:', data.records);
         setNegotiationHistory(data.records || []);
+      } else {
+        console.error('Failed to fetch records, status:', response.status);
       }
     } catch (err) {
       console.error('Failed to fetch negotiation history:', err);
@@ -189,17 +192,20 @@ const NewRequests = () => {
       label: "Negotiation History",
       key: "negotiationHistory",
       render: () => {
-        const clientResponses = negotiationHistory.filter(r => r.itemType === 'response');
-        const lastClientResponse = clientResponses.length > 0 ? clientResponses[0] : null;
+        console.log('Rendering negotiation history, count:', negotiationHistory.length, negotiationHistory);
+        const quotesWithResponse = negotiationHistory.filter(r => r.itemType === 'quote' && r.clientResponse);
+        const lastResponseQuote = quotesWithResponse.length > 0 ? quotesWithResponse[0] : null;
         
         return (
           <div style={{ marginTop: '10px' }}>
-            {lastClientResponse && (
-              <div style={{ padding: '12px', backgroundColor: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '4px', marginBottom: '10px' }}>
-                <strong style={{ color: '#1890ff' }}>💬 Latest Client Response:</strong>
+            {lastResponseQuote && (
+              <div style={{ padding: '12px', backgroundColor: lastResponseQuote.state === 'accepted' ? '#f6ffed' : '#fff1f0', border: `1px solid ${lastResponseQuote.state === 'accepted' ? '#b7eb8f' : '#ffccc7'}`, borderRadius: '4px', marginBottom: '10px' }}>
+                <strong style={{ color: lastResponseQuote.state === 'accepted' ? '#52c41a' : '#ff4d4f' }}>
+                  💬 Latest Client Response: {lastResponseQuote.state === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
+                </strong>
                 <br />
                 <small style={{ color: '#666' }}>
-                  {new Date(lastClientResponse.createdAt).toLocaleString('en-US', {
+                  {new Date(lastResponseQuote.responseTime).toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
@@ -208,7 +214,7 @@ const NewRequests = () => {
                   })}
                 </small>
                 <div style={{ marginTop: '8px', fontSize: '14px' }}>
-                  {lastClientResponse.messageBody}
+                  {lastResponseQuote.clientResponse}
                 </div>
               </div>
             )}
@@ -228,18 +234,21 @@ const NewRequests = () => {
                   <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', maxHeight: '400px', overflowY: 'auto' }}>
                     <Timeline mode="left">
                       {negotiationHistory.map((record, idx) => {
-                        const isManagerQuote = record.itemType === 'quote';
-                        const isClientResponse = record.itemType === 'response';
+                        const isQuote = record.itemType === 'quote';
+                        const hasResponse = record.clientResponse && record.responseTime;
+                        const isAccepted = record.state === 'accepted';
+                        const isRejected = record.state === 'rejected';
                         
                         return (
                           <Timeline.Item 
                             key={idx}
-                            color={isManagerQuote ? 'green' : isClientResponse ? 'blue' : 'gray'}
+                            color={isAccepted ? 'green' : isRejected ? 'red' : 'blue'}
                             dot={<ClockCircleOutlined />}
                           >
                             <div>
-                              <strong style={{ color: isManagerQuote ? '#52c41a' : isClientResponse ? '#1890ff' : '#666' }}>
-                                {isManagerQuote ? '💼 Manager Quote' : isClientResponse ? '👤 Client Response' : '📝 Note'}
+                              <strong style={{ color: isAccepted ? '#52c41a' : isRejected ? '#ff4d4f' : '#1890ff' }}>
+                                {isQuote ? '💼 Manager Quote' : '📝 Note'}
+                                {hasResponse && (isAccepted ? ' ✓ Accepted' : isRejected ? ' ✗ Rejected' : '')}
                               </strong>
                               <br />
                               <small style={{ color: '#999' }}>
@@ -251,11 +260,30 @@ const NewRequests = () => {
                                   minute: '2-digit'
                                 })}
                               </small>
-                              <div style={{ marginTop: '8px' }}>
-                                {record.price && <div><strong>Price:</strong> ${record.price}</div>}
-                                {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
-                                {record.messageBody && <div><strong>Note:</strong> {record.messageBody}</div>}
-                              </div>
+                              
+                              {isQuote && (
+                                <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
+                                  {record.price && <div><strong>Price:</strong> ${record.price}</div>}
+                                  {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
+                                  {record.messageBody && <div><strong>Manager Note:</strong> {record.messageBody}</div>}
+                                </div>
+                              )}
+                              
+                              {hasResponse && (
+                                <div style={{ marginTop: '8px', padding: '10px', backgroundColor: isAccepted ? '#f6ffed' : '#fff1f0', border: `1px solid ${isAccepted ? '#b7eb8f' : '#ffccc7'}`, borderRadius: '4px' }}>
+                                  <div><strong>👤 Client Response:</strong></div>
+                                  <div style={{ marginTop: '4px' }}>{record.clientResponse}</div>
+                                  <small style={{ color: '#999', display: 'block', marginTop: '4px' }}>
+                                    {new Date(record.responseTime).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </small>
+                                </div>
+                              )}
                             </div>
                           </Timeline.Item>
                         );

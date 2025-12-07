@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Tag, Spin, Alert, Button, Space, Modal, Typography, Descriptions, Timeline, Card, Input, message } from 'antd';
+import { Table, Tag, Spin, Alert, Button, Space, Modal, Typography, Descriptions, Timeline, Card, Input } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, MessageOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -12,8 +12,7 @@ const PriorSubmits = ({ onUpdate }) => {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [communicationHistory, setCommunicationHistory] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [sendingMessage, setSendingMessage] = useState(false);
+    const [clientNote, setClientNote] = useState('');
 
     useEffect(() => {
         fetchRequests();
@@ -81,22 +80,24 @@ const PriorSubmits = ({ onUpdate }) => {
             });
             
             if (response.ok) {
-                // Create acceptance record
-                await fetch(`http://localhost:5000/api/service-requests/${request.id}/records`, {
-                    method: 'POST',
+                // Update the latest pending quote with client's acceptance
+                const noteText = clientNote.trim() || 'No additional notes';
+                await fetch(`http://localhost:5000/api/service-requests/${request.id}/quote-response`, {
+                    method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
-                        itemType: 'response',
-                        messageBody: `Client accepted quote of $${request.managerQuote}`
+                        clientResponse: `Accepted. ${noteText}`,
+                        state: 'accepted'
                     })
                 });
                 
                 Modal.success({
                     content: 'Quote accepted! The service will be completed at the scheduled time.',
                 });
+                setClientNote('');
                 fetchRequests();
                 setModalVisible(false);
                 if (onUpdate) onUpdate();
@@ -122,22 +123,24 @@ const PriorSubmits = ({ onUpdate }) => {
             });
             
             if (response.ok) {
-                // Create rejection record
-                await fetch(`http://localhost:5000/api/service-requests/${request.id}/records`, {
-                    method: 'POST',
+                // Update the latest pending quote with client's rejection
+                const noteText = clientNote.trim() || 'No reason provided';
+                await fetch(`http://localhost:5000/api/service-requests/${request.id}/quote-response`, {
+                    method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
-                        itemType: 'response',
-                        messageBody: `Client rejected quote of $${request.managerQuote}. Requesting new quote.`
+                        clientResponse: `Rejected. Reason: ${noteText}`,
+                        state: 'rejected'
                     })
                 });
                 
                 Modal.success({
                     content: 'Quote rejected. The request has been returned to the manager for a new quote.',
                 });
+                setClientNote('');
                 fetchRequests();
                 setModalVisible(false);
                 if (onUpdate) onUpdate();
@@ -155,7 +158,7 @@ const PriorSubmits = ({ onUpdate }) => {
         setSelectedRequest(record);
         setModalVisible(true);
         
-        // Fetch communication history
+        // Fetch communication history to check if already responded
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:5000/api/service-requests/${record.id}/records`, {
@@ -167,46 +170,25 @@ const PriorSubmits = ({ onUpdate }) => {
             
             if (response.ok) {
                 const data = await response.json();
-                setCommunicationHistory(data.records || []);
+                const records = data.records || [];
+                setCommunicationHistory(records);
+                
+                // Check if the latest quote has been responded to
+                const latestQuote = records.find(r => r.itemType === 'quote');
+                const hasResponded = latestQuote && latestQuote.clientResponse;
+                
+                // Add flag to selected request
+                setSelectedRequest({
+                    ...record,
+                    hasResponded: hasResponded
+                });
             }
         } catch (err) {
             console.error('Failed to fetch communication history:', err);
         }
     };
 
-    const handleSendMessage = async () => {
-        if (!newMessage.trim()) {
-            message.warning('Please enter a message');
-            return;
-        }
 
-        setSendingMessage(true);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/service-requests/${selectedRequest.id}/message`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message: newMessage })
-            });
-            
-            if (response.ok) {
-                message.success('Message sent!');
-                setNewMessage('');
-                // Refresh communication history
-                showQuoteDetails(selectedRequest);
-            } else {
-                message.error('Failed to send message');
-            }
-        } catch (err) {
-            console.error('Send message error:', err);
-            message.error('Network error');
-        } finally {
-            setSendingMessage(false);
-        }
-    };
 
     const columns = [
         {
@@ -315,7 +297,7 @@ const PriorSubmits = ({ onUpdate }) => {
                             </Descriptions.Item>
                             <Descriptions.Item label="Manager Quote">
                                 <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
-                                    ${selectedRequest.managerQuote}
+                                    {selectedRequest.managerQuote ? `$${selectedRequest.managerQuote}` : '-'}
                                 </Text>
                             </Descriptions.Item>
                             <Descriptions.Item label="Scheduled Time" span={2}>
@@ -353,79 +335,50 @@ const PriorSubmits = ({ onUpdate }) => {
                             </div>
                         )}
 
-                        {/* Communication History */}
-                        <Card 
-                            title={<><MessageOutlined /> Communication History</>} 
-                            style={{ marginTop: '20px' }}
-                            size="small"
-                        >
-                            {communicationHistory.length > 0 ? (
-                                <Timeline mode="left">
-                                    {communicationHistory.map((record, idx) => (
-                                        <Timeline.Item 
-                                            key={idx}
-                                            color={record.senderName === 'client' ? 'blue' : 'green'}
-                                            dot={<ClockCircleOutlined />}
+                        {selectedRequest.state === 'pending_response' && !selectedRequest.hasResponded && (
+                            <div style={{ marginTop: '20px' }}>
+                                <Card title="Your Response" size="small" style={{ marginBottom: '16px' }}>
+                                    <TextArea
+                                        rows={3}
+                                        value={clientNote}
+                                        onChange={(e) => setClientNote(e.target.value)}
+                                        placeholder="Optional: Add a note when accepting or rejecting the quote..."
+                                        maxLength={500}
+                                        showCount
+                                    />
+                                </Card>
+                                
+                                <div style={{ textAlign: 'center' }}>
+                                    <Space size="large">
+                                        <Button
+                                            type="primary"
+                                            icon={<CheckCircleOutlined />}
+                                            size="large"
+                                            onClick={() => handleAcceptQuote(selectedRequest)}
+                                            style={{ background: '#52c41a', borderColor: '#52c41a' }}
                                         >
-                                            <div>
-                                                <Text strong>{record.senderName === 'client' ? 'You' : 'Manager'}</Text>
-                                                <br />
-                                                <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                    {formatDate(record.createdAt || new Date())}
-                                                </Text>
-                                                <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                                                    {record.messageBody}
-                                                </div>
-                                            </div>
-                                        </Timeline.Item>
-                                    ))}
-                                </Timeline>
-                            ) : (
-                                <Text type="secondary">No messages yet</Text>
-                            )}
-
-                            {/* Message Input */}
-                            <div style={{ marginTop: '16px' }}>
-                                <TextArea
-                                    rows={3}
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder="Type a message to the manager..."
-                                    maxLength={500}
-                                />
-                                <Button
-                                    type="primary"
-                                    icon={<MessageOutlined />}
-                                    onClick={handleSendMessage}
-                                    loading={sendingMessage}
-                                    style={{ marginTop: '8px' }}
-                                >
-                                    Send Message
-                                </Button>
+                                            Accept Quote
+                                        </Button>
+                                        <Button
+                                            danger
+                                            icon={<CloseCircleOutlined />}
+                                            size="large"
+                                            onClick={() => handleRejectQuote(selectedRequest)}
+                                        >
+                                            Reject Quote
+                                        </Button>
+                                    </Space>
+                                </div>
                             </div>
-                        </Card>
-
-                        {selectedRequest.state === 'pending_response' && (
+                        )}
+                        
+                        {selectedRequest.state === 'pending_response' && selectedRequest.hasResponded && (
                             <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                                <Space size="large">
-                                    <Button
-                                        type="primary"
-                                        icon={<CheckCircleOutlined />}
-                                        size="large"
-                                        onClick={() => handleAcceptQuote(selectedRequest)}
-                                        style={{ background: '#52c41a', borderColor: '#52c41a' }}
-                                    >
-                                        Accept Quote
-                                    </Button>
-                                    <Button
-                                        danger
-                                        icon={<CloseCircleOutlined />}
-                                        size="large"
-                                        onClick={() => handleRejectQuote(selectedRequest)}
-                                    >
-                                        Reject Quote
-                                    </Button>
-                                </Space>
+                                <Card style={{ backgroundColor: '#e6f7ff', border: '1px solid #91d5ff' }}>
+                                    <Text style={{ color: '#1890ff', fontSize: '14px' }}>
+                                        ⏳ You have already responded to this quote. Waiting for manager to send a new quote...
+                                    </Text>
+                                </Card>
                             </div>
                         )}
                     </div>

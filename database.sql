@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
 CREATE TABLE IF NOT EXISTS records (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
-    itemType VARCHAR(20),          -- record or message
+    itemType VARCHAR(20),          -- quote, message
 
     requestId INT,
     refId INT,
@@ -81,10 +81,15 @@ CREATE TABLE IF NOT EXISTS records (
     price DECIMAL(10,2),
     businessTime VARCHAR(100),      -- business time (not auto-generated)
 
-    senderName VARCHAR(50),        -- client or admin
-    messageBody TEXT,
+    senderName VARCHAR(50),        -- manager or client
+    messageBody TEXT,              -- manager's note
 
-    state VARCHAR(50),              -- pending, countered, accepted, rejected
+    clientResponse TEXT,           -- client's response (accept/reject reason)
+    responseTime DATETIME,         -- when client responded
+    
+    state VARCHAR(50),              -- pending, accepted, rejected
+
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (requestId) REFERENCES service_requests(id)
 );

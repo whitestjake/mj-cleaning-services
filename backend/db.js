@@ -279,11 +279,23 @@ async function updateRecordStatus(id, state) {
 
 // Add quote record (admin creates quote)
 async function addQuote(requestId, price, businessTime, messageBody) {
-    await pool.query(
+    const [result] = await pool.query(
         `INSERT INTO records (
             itemType, requestId, price, businessTime, senderName, messageBody, state
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         ['quote', requestId, price, businessTime, 'manager', messageBody, 'pending']
+    );
+    return result.insertId;
+}
+
+// Update quote record with client response
+async function updateQuoteResponse(requestId, clientResponse, responseState) {
+    await pool.query(
+        `UPDATE records 
+         SET clientResponse = ?, responseTime = NOW(), state = ?
+         WHERE requestId = ? AND itemType = 'quote' AND state = 'pending'
+         ORDER BY id DESC LIMIT 1`,
+        [clientResponse, responseState, requestId]
     );
 }
 
@@ -400,6 +412,7 @@ module.exports = {
     getRecords,
     updateRecordStatus,
     addQuote,
+    updateQuoteResponse,
     addMessage,
     // Orders
     addOrder,

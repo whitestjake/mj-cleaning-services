@@ -22,7 +22,11 @@ const {
     getServiceRequests,
     getServiceRequestsWithClient,
     updateServiceRequestStatus,
-    updateServiceRequest
+    updateServiceRequest,
+    getRecords,
+    addQuote,
+    updateQuoteResponse,
+    addMessage
 } = require('./db');
 
 const app = express();
@@ -496,6 +500,23 @@ app.post('/api/service-requests/:id/records', authenticateToken, async (req, res
     res.status(500).json({ 
       success: false, 
       message: 'Failed to create record' 
+    });
+  }
+});
+
+// Update quote with client response
+app.put('/api/service-requests/:id/quote-response', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const { clientResponse, state } = req.body;
+    
+    await updateQuoteResponse(requestId, clientResponse, state);
+    res.json({ success: true, message: 'Quote response updated successfully' });
+  } catch (error) {
+    console.error('Update quote response error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update quote response' 
     });
   }
 });
