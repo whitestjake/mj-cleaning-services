@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Layout, Menu, Card, Table, Typography, Button, Space } from 'antd';
+import { useState, useEffect } from 'react';
+import { Layout, Menu, Card, Table, Typography, Button, Space, Badge } from 'antd';
 import { 
     DashboardOutlined, 
     FormOutlined, 
@@ -19,9 +19,33 @@ const ClientDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("request");
     const [collapsed, setCollapsed] = useState(false);
+    const [pendingQuotesCount, setPendingQuotesCount] = useState(0);
+
+    useEffect(() => {
+        fetchPendingQuotes();
+    }, []);
+
+    const fetchPendingQuotes = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/service-requests', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const pendingCount = (data.requests || []).filter(req => req.state === 'pending_response').length;
+                setPendingQuotesCount(pendingCount);
+            }
+        } catch (err) {
+            console.error('Failed to fetch pending quotes:', err);
+        }
+    };
 
     const handleLogout = () => {
-        // Add logout logic here
         navigate('/');
     };
 
@@ -79,14 +103,18 @@ const ClientDashboard = () => {
         {
             key: 'submitted',
             icon: <HistoryOutlined />,
-            label: 'Submitted Requests',
+            label: (
+                <Badge count={pendingQuotesCount} size="small">
+                    <span style={{ marginRight: 8 }}>My Requests</span>
+                </Badge>
+            ),
         }
     ];
 
     return (
         <Layout style={{ height: '100vh' }}>
             <Header style={{ 
-                background: '#001529', 
+                background: '#495057', 
                 padding: '0 16px', 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -126,8 +154,8 @@ const ClientDashboard = () => {
                     width={200}
                     collapsedWidth={50}
                 >
-                    <div style={{ padding: '8px', textAlign: 'center' }}>
-                        <Title level={5} style={{ margin: 0 }}>
+                    <div style={{ padding: '8px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>
+                        <Title level={5} style={{ margin: 0, color: '#495057' }}>
                             {collapsed ? 'C' : 'Client Panel'}
                         </Title>
                     </div>
@@ -139,23 +167,24 @@ const ClientDashboard = () => {
                     />
                 </Sider>
                 
-                <Content style={{ padding: '8px', background: '#f0f2f5', overflow: 'auto', flex: 1 }}>
+                <Content style={{ padding: '8px', background: '#f8f9fa', overflow: 'auto', flex: 1 }}>
                     <div style={{ maxWidth: '1200px', margin: '0 auto', height: '100%' }}>
 
-                        <Card title="Available Services" style={{ marginBottom: '8px' }} size="small">
+                        <Card title="Available Services" style={{ marginBottom: '8px', border: '1px solid #dee2e6', backgroundColor: '#fff' }} size="small">
                             <Table 
                                 dataSource={servicesData} 
                                 columns={columns} 
                                 pagination={false}
                                 size="small"
+                                bordered
                             />
                         </Card>
 
 
-                        <Card size="small" style={{ flex: 1 }}>
+                        <Card size="small" style={{ flex: 1, border: '1px solid #dee2e6', backgroundColor: '#fff' }}>
                             {activeTab === 'request' && (
                                 <div>
-                                    <Title level={4} style={{ marginBottom: '12px' }}>
+                                    <Title level={4} style={{ marginBottom: '12px', color: '#495057' }}>
                                         Service Request
                                     </Title>
                                     <RequestForm />
@@ -164,10 +193,16 @@ const ClientDashboard = () => {
                             
                             {activeTab === 'submitted' && (
                                 <div>
-                                    <Title level={4} style={{ marginBottom: '12px' }}>
-                                        Submitted Requests
+                                    <Title level={4} style={{ marginBottom: '12px', color: '#495057' }}>
+                                        My Service Requests
+                                        {pendingQuotesCount > 0 && (
+                                            <Badge 
+                                                count={`${pendingQuotesCount} pending quote${pendingQuotesCount > 1 ? 's' : ''}`} 
+                                                style={{ marginLeft: 16, backgroundColor: '#ff4d4f' }}
+                                            />
+                                        )}
                                     </Title>
-                                    <PriorSubmits />
+                                    <PriorSubmits onUpdate={fetchPendingQuotes} />
                                 </div>
                             )}
                         </Card>

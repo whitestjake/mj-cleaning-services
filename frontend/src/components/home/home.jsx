@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { Layout, Typography, Table, Button, Space, Card, Row, Col } from 'antd';
-import { LoginOutlined, UserAddOutlined, HomeOutlined } from '@ant-design/icons';
+import { Layout, Typography, Table, Button, Space, Card } from 'antd';
+import { HomeOutlined } from '@ant-design/icons';
 
 const { Header, Content, Footer } = Layout;
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 
 const Home = () => {
     const navigate = useNavigate();
@@ -62,38 +62,55 @@ const Home = () => {
     ];
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header style={{ background: '#001529', padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+        <Layout style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+            <Header style={{ background: '#495057', padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                 <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
                     <HomeOutlined style={{ marginRight: '8px' }} />
-                    AJ Cleaning Services
+                    MJ Cleaning Services
                 </div>
             </Header>
             
             <Content style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                 <div style={{ maxWidth: '900px', width: '100%' }}>
                     <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <Title level={1} style={{ color: '#1890ff', marginBottom: '8px', fontSize: '1.8rem' }}>
-                            Welcome to AJ Cleaning Services!
+                        <Title level={1} style={{ color: '#495057', marginBottom: '8px', fontSize: '1.8rem' }}>
+                            Welcome to MJ Cleaning Services!
                         </Title>
                     </div>
 
-                    <Card title="Our Services" style={{ marginBottom: '16px' }} size="small">
+                    <Card title="Our Services" style={{ marginBottom: '16px', border: '1px solid #dee2e6', backgroundColor: '#fff' }} size="small">
                         <Table 
                             dataSource={servicesData} 
                             columns={columns} 
                             pagination={false}
                             size="small"
                             showHeader={false}
+                            bordered
                         />
                     </Card>
                     
-                    <div style={{ textAlign: 'center', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <div style={{ textAlign: 'center', padding: '16px', background: '#fff', border: '1px solid #dee2e6' }}>
                         <Space size="large">
-                            <Button type="primary" size="large" onClick={registerRedirect}>
+                            <Button 
+                                style={{ 
+                                    background: '#495057', 
+                                    borderColor: '#495057', 
+                                    color: '#fff'
+                                }} 
+                                size="large" 
+                                onClick={registerRedirect}
+                            >
                                 Register
                             </Button>
-                            <Button size="large" onClick={loginRedirect}>
+                            <Button 
+                                style={{ 
+                                    background: '#fff', 
+                                    borderColor: '#6c757d', 
+                                    color: '#495057'
+                                }} 
+                                size="large" 
+                                onClick={loginRedirect}
+                            >
                                 Login
                             </Button>
                         </Space>
@@ -101,8 +118,8 @@ const Home = () => {
                 </div>
             </Content>
             
-            <Footer style={{ textAlign: 'center' }}>
-                AJ Cleaning Services ©2025 Created with care
+            <Footer style={{ textAlign: 'center', background: '#f8f9fa', borderTop: '1px solid #dee2e6' }}>
+                MJ Cleaning Services (c) 2025 Created with care
             </Footer>
         </Layout>
     );

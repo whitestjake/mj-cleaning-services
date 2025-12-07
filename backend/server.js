@@ -1,340 +1,551 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const app = express();
-const port = process.env.PORT || 5000;
-
-const db = require('./db');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, 'database.env') });
+
+// Import database functions
+const {
+    addClient,
+    authenticateClient,
+    authenticateAdmin,
+    getClient,
+    getAllClients,
+    addServiceRequest,
+    getServiceRequest,
+    getServiceRequests,
+    getServiceRequestsWithClient,
+    updateServiceRequestStatus,
+    updateServiceRequest
+} = require('./db');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({
-    origin: 'http://localhost:3000', // React dev server
-    credentials: true // Allow cookies
-}));
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // For form data
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Simple in-memory session store (for frontend compatibility)
-const sessions = new Map();
-app.use((req, res, next) => {
-    // Use a simple default session for demo purposes
-    const sessionId = 'default-session';
-    if (!sessions.has(sessionId)) {
-        sessions.set(sessionId, {});
-    }
-    req.session = sessions.get(sessionId);
-    req.sessionId = sessionId;
-    next();
-});
-
-// Simple session-based authentication
-const requireSession = (req, res, next) => {
-    if (!req.session?.userId) {
-        return res.status(401).json({ error: 'Login required' });
-    }
-    next();
-};
-
-// Error handling middleware
-const handleAsync = (fn) => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-};
-
-// Generic error handler
-const errorHandler = (err, req, res, next) => {
-    console.error('API Error:', err);
-    res.status(500).json({ error: err.message || 'Internal server error' });
-};
-
-
-
-// AUTHENTICATION ROUTES
-
-
-
-// Session-based login for frontend compatibility
-app.post('/api/login', handleAsync(async (req, res) => {
-
-    const { email, password } = req.body;
-    
-    // Try client login first
-
-    let user = await db.authenticateClient(email, password);
-    if (user) {
-
-        req.session.userId = user.client_id;
-        req.session.role = 'client';
-        sessions.set(req.sessionId, req.session);
-        return res.json({ id: user.client_id, role: 'client', ...user });
-    }
-    
-    // Try admin login (support both username and email)
-
-    user = await db.authenticateAdmin(email, password);
-    if (user) {
-
-        req.session.userId = user.admin_id;
-        req.session.role = 'manager'; // Use 'manager' for frontend compatibility
-        sessions.set(req.sessionId, req.session);
-        return res.json({ id: user.admin_id, role: 'manager', ...user });
-    }
-    
-
-    res.status(401).json({ error: 'Invalid credentials' });
-}));
-
-// Simple client login endpoint (for frontend hardcoded buttons)
-app.post('/api/client-login', handleAsync(async (req, res) => {
-
-    // For demo purposes - create a default client session
-    req.session.userId = 1; // Default client ID
-    req.session.role = 'client';
-    sessions.set(req.sessionId, req.session);
-
-    res.json({ id: 1, role: 'client', message: 'Client logged in successfully' });
-}));
-
-// Simple manager login endpoint (for frontend hardcoded buttons)
-app.post('/api/manager-login', handleAsync(async (req, res) => {
-    // For demo purposes - create a default admin session
-    req.session.userId = 1; // Default admin ID
-    req.session.role = 'manager';
-    sessions.set(req.sessionId, req.session);
-    res.json({ id: 1, role: 'manager', message: 'Manager logged in successfully' });
-}));
-
-// Get current user session
-app.get('/api/me', (req, res) => {
-    if (req.session && req.session.userId) {
-        res.json({ id: req.session.userId, role: req.session.role });
-    } else {
-        res.status(401).json({ error: 'Not authenticated' });
-    }
-});
-
-// Logout endpoint
-app.post('/api/logout', (req, res) => {
-    req.session.userId = null;
-    req.session.role = null;
-    sessions.set(req.sessionId, req.session);
-    res.json({ message: 'Logged out successfully' });
-});
-
-
-
-
-// CLIENT MANAGEMENT ROUTES
-
-app.post('/api/clients', handleAsync(async (req, res) => {
-
-    
-    try {
-        await db.addClient(req.body);
-
-        res.json({ message: 'Client registered' });
-    } catch (error) {
-        console.error('Client registration failed:', error.message);
-        
-        if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({ error: 'Email already registered' });
-        }
-        
-        // Re-throw to let the error handler deal with it
-        throw error;
-    }
-}));
-
-app.get('/api/dashboard', requireSession, handleAsync(async (req, res) => {
-    if (req.session.role === 'client') {
-        const clientId = req.session.userId;
-        const client = await db.getClient(clientId);
-        const requests = await db.getServiceRequests(clientId);
-        
-        res.json({
-            client,
-            requests,
-            totalRequests: requests.length,
-            pendingRequests: requests.filter(r => r.state === 'pending').length,
-            completedRequests: requests.filter(r => r.state === 'accepted').length
-        });
-    } else if (req.session.role === 'manager') {
-        const requests = await db.getServiceRequestsWithClient();
-        res.json({ requests });
-    }
-}));
-
-
-// FILE UPLOAD CONFIGURATION
-
-// Configure multer for file uploads
+// Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+    fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const extension = path.extname(file.originalname);
-    cb(null, `${timestamp}-${Math.round(Math.random() * 1E9)}${extension}`);
-  }
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
 });
 
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 5 // Max 5 files
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
     }
-  }
 });
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(uploadsDir));
+// JWT secret from environment
+const JWT_SECRET = process.env.JWT_SECRET || 'default-dev-secret-key-change-in-production';
 
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!');
+}
 
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-// Frontend-compatible form submission endpoint
-app.post('/submit', upload.array('photos', 5), handleAsync(async (req, res) => {
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
 
-    
-    // Extract form data
-    const {
-        serviceType,
-        numRooms,
-        serviceDate,
-        serviceAddress,
-        clientBudget,
-        addOutdoor
-    } = req.body;
-    
-    // Get client ID from session (for frontend compatibility)
-    const clientId = req.session?.userId;
-    if (!clientId || req.session?.role !== 'client') {
-
-        return res.status(401).json({ error: 'Client login required' });
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
     }
-    
+    req.user = user;
+    next();
+  });
+};
 
-    
-    // Handle uploaded photos
-    const photos = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
-    
-    // Create service request with frontend-matching field names
-    const requestData = {
-        client_id: clientId,
-        serviceType: serviceType,
-        numRooms: parseInt(numRooms) || 1,
-        serviceDate: serviceDate,
-        service_address: serviceAddress,
-        clientBudget: parseFloat(clientBudget) || null,
-        addOutdoor: addOutdoor === 'true' || addOutdoor === true,
-        note: req.body.note || null,
-        state: 'pending',
-        photo1_path: photos[0] || null,
-        photo2_path: photos[1] || null,
-        photo3_path: photos[2] || null,
-        photo4_path: photos[3] || null,
-        photo5_path: photos[4] || null
-    };
-    
+// Test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Backend server is running!' });
+});
 
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { firstName, lastName, address, phoneNumber, email, cardNumber, password } = req.body;
     
-    await db.addServiceRequest(requestData);
-    
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: firstName, lastName, email, password' 
+      });
+    }
 
+    // Use database function to add client
+    await addClient({ 
+      firstName, 
+      lastName, 
+      address, 
+      phoneNumber, 
+      email, 
+      cardNumber, 
+      password 
+    });
     
     res.json({ 
-        message: 'Service request submitted successfully',
-        requestId: Date.now()
+      success: true, 
+      message: 'Registration successful! Please login.' 
     });
-}));
-
-
-// SERVICE REQUEST MANAGEMENT
-
-app.post('/api/requests', requireSession, handleAsync(async (req, res) => {
-    if (req.session.role !== 'client') {
-        return res.status(403).json({ error: 'Client access required' });
+  } catch (error) {
+    console.error('Registration error:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      res.status(400).json({ 
+        success: false, 
+        message: 'Email already exists' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Registration failed. Please try again.' 
+      });
     }
+  }
+});
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Check for admin login first
+    const admin = await authenticateAdmin(email, password);
+    if (admin) {
+      const token = jwt.sign(
+        { id: admin.id, email: admin.email, role: 'manager' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      return res.json({
+        success: true,
+        role: 'manager',
+        token,
+        user: { id: admin.id, email: admin.email, role: 'manager' }
+      });
+    }
+
+    // Try client authentication
+    const client = await authenticateClient(email, password);
+    if (!client) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid email or password' 
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: client.id, email: client.email, role: 'client' },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      role: 'client',
+      token,
+      user: {
+        id: client.id,
+        email: client.email,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        role: 'client'
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Login failed. Please try again.' 
+    });
+  }
+});
+
+// Service request endpoints
+app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), async (req, res) => {
+  try {
+    console.log('Create service request - User from token:', req.user);
+    console.log('User role:', req.user.role);
+    
+    if (req.user.role !== 'client') {
+      console.log('Role check failed. Expected: client, Got:', req.user.role);
+      return res.status(403).json({ error: 'Only clients can create service requests' });
+    }
+
+    const {
+      serviceAddress,
+      serviceType,
+      numRooms,
+      serviceDate,
+      clientBudget,
+      note
+    } = req.body;
+
+    // Handle uploaded photos
+    const photoPaths = {};
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((file, index) => {
+        photoPaths[`photo${index + 1}Path`] = `/uploads/${file.filename}`;
+      });
+    }
+
     const requestData = {
-        ...req.body,
-        client_id: req.session.userId,
-        state: req.body.state || 'pending'
+      clientId: req.user.id,
+      serviceAddress,
+      serviceType,
+      numRooms: parseInt(numRooms) || 0,
+      serviceDate: new Date(serviceDate),
+      clientBudget: clientBudget ? parseFloat(clientBudget) : null,
+      note,
+      state: 'new',
+      ...photoPaths
     };
-    await db.addServiceRequest(requestData);
-    res.json({ message: 'Service request created' });
-}));
 
-app.get('/api/requests', requireSession, handleAsync(async (req, res) => {
-    let rows;
-    if (req.session.role === 'client') {
-        rows = await db.getServiceRequests(req.session.userId);
-    } else if (req.session.role === 'manager') {
-        rows = await db.getServiceRequestsWithClient();
-    }
-    res.json(rows);
-}));
-
-app.get('/api/requests/:id', requireSession, handleAsync(async (req, res) => {
-    const { id } = req.params;
+    const requestId = await addServiceRequest(requestData);
     
-    const row = await db.getServiceRequest(id);
-    if (!row) {
-        return res.status(404).json({ error: 'Request not found' });
+    res.json({ 
+      success: true, 
+      message: 'Service request created successfully',
+      id: requestId 
+    });
+  } catch (error) {
+    console.error('Create service request error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create service request' 
+    });
+  }
+});
+
+app.get('/api/service-requests', authenticateToken, async (req, res) => {
+  try {
+    let requests;
+    
+    if (req.user.role === 'client') {
+      // Client can only see their own requests
+      requests = await getServiceRequests(req.user.id);
+    } else if (req.user.role === 'manager') {
+      // Manager can see all requests with optional status filter
+      const { status } = req.query;
+      let allRequests = await getServiceRequestsWithClient();
+      
+      console.log('=== Manager Request Filter Debug ===');
+      console.log('Requested status:', status);
+      console.log('Total requests in DB:', allRequests.length);
+      console.log('All states:', allRequests.map(r => r.state));
+      
+      // Filter by status if provided
+      if (status) {
+        requests = allRequests.filter(req => req.state === status);
+        console.log(`Filtered to status "${status}":`, requests.length);
+      } else {
+        requests = allRequests;
+      }
+    } else {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error('Get service requests error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch service requests' 
+    });
+  }
+});
+
+// Get specific service request
+app.get('/api/service-requests/:id', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const request = await getServiceRequest(requestId);
+    
+    if (!request) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Service request not found' 
+      });
+    }
+
+    // Check access permissions
+    if (req.user.role === 'client' && request.clientId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }    res.json({ success: true, request });
+  } catch (error) {
+    console.error('Get service request error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch service request' 
+    });
+  }
+});
+
+// Update service request
+app.put('/api/service-requests/:id', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const updates = req.body;
+    
+    // Get the request to check permissions
+    const request = await getServiceRequest(requestId);
+    if (!request) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Service request not found' 
+      });
     }
     
-    if (req.session.role === 'client' && row.client_id !== req.session.userId) {
-        return res.status(403).json({ error: 'Access denied' });
+    // Managers can update any request
+    // Clients can only update their own requests and only state transitions
+    if (req.user.role === 'manager') {
+      // Manager can update anything
+      await updateServiceRequest(requestId, updates);
+    } else if (req.user.role === 'client') {
+      // Client can only update their own requests
+      if (request.clientId !== req.user.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied' 
+        });
+      }
+      // Clients can only update state and renegotiation fields
+      const allowedFields = ['state', 'clientAdjustment', 'isRenegotiation'];
+      const clientUpdates = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (allowedFields.includes(key)) {
+          clientUpdates[key] = value;
+        }
+      }
+      await updateServiceRequest(requestId, clientUpdates);
+    } else {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied' 
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Service request updated successfully' 
+    });
+  } catch (error) {
+    console.error('Update service request error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update service request' 
+    });
+  }
+});
+
+// Update service request status
+app.put('/api/service-requests/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const { status } = req.body;
+    
+    // Get the request to check permissions
+    const request = await getServiceRequest(requestId);
+    if (!request) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Service request not found' 
+      });
     }
     
-    res.json(row);
-}));
+    // Managers can update any status
+    // Clients can only update status for their own requests and only specific transitions
+    if (req.user.role === 'manager') {
+      await updateServiceRequestStatus(requestId, status);
+    } else if (req.user.role === 'client') {
+      // Client can only update their own requests
+      if (request.clientId !== req.user.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Access denied' 
+        });
+      }
+      // Clients can only accept (pending_response -> accepted) or reject
+      const allowedTransitions = {
+        'pending_response': ['accepted', 'rejected', 'new']
+      };
+      const currentState = request.state;
+      if (!allowedTransitions[currentState] || !allowedTransitions[currentState].includes(status)) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Invalid status transition' 
+        });
+      }
+      await updateServiceRequestStatus(requestId, status);
+    } else {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied' 
+      });
+    }
 
+    res.json({ 
+      success: true, 
+      message: 'Request status updated successfully' 
+    });
+  } catch (error) {
+    console.error('Update request status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update request status' 
+    });
+  }
+});
 
+// Get all clients (for manager)
+app.get('/api/clients', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only managers can view clients' 
+      });
+    }
 
+    const clients = await getAllClients();
+    res.json({ success: true, clients });
+  } catch (error) {
+    console.error('Get clients error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch clients' 
+    });
+  }
+});
 
+// Get communication records for a request
+app.get('/api/service-requests/:id/records', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const records = await getRecords(requestId);
+    res.json({ success: true, records });
+  } catch (error) {
+    console.error('Get records error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch communication records' 
+    });
+  }
+});
 
-// SYSTEM ROUTES
+// Add negotiation record
+app.post('/api/service-requests/:id/records', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const { itemType, price, businessTime, messageBody } = req.body;
+    const senderName = req.user.role;
+    
+    if (itemType === 'quote') {
+      await addQuote(requestId, price, businessTime, messageBody);
+    } else if (itemType === 'response') {
+      await addMessage(requestId, senderName, messageBody);
+    } else {
+      await addMessage(requestId, senderName, messageBody);
+    }
+    
+    res.json({ success: true, message: 'Record created successfully' });
+  } catch (error) {
+    console.error('Add record error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create record' 
+    });
+  }
+});
 
-app.get('/', (req, res) => {
-    res.send('MJ Cleaning Services API is running!');
+// Add communication message
+app.post('/api/service-requests/:id/message', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const { message } = req.body;
+    const senderName = req.user.role;
+    
+    await addMessage(requestId, senderName, message);
+    res.json({ success: true, message: 'Message sent successfully' });
+  } catch (error) {
+    console.error('Add message error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send message' 
+    });
+  }
+});
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'File too large. Maximum size is 5MB.' 
+      });
+    }
+  }
+  
+  console.error('Server error:', error);
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error' 
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('Make sure to:');
+  console.log('1. Set up MySQL database');
+  console.log('2. Configure database.env file');
+  console.log('3. Run database.sql to create tables');
 });
 
 
-// ERROR HANDLING
-
-// Error handling middleware must be last
-app.use(errorHandler);
 
 
-// SERVER STARTUP
-
-app.listen(port, () => {
-    console.log(`MJ Cleaning Services API is running on http://localhost:${port}`);
-    console.log('Available endpoints:');
-    console.log('  POST /api/login - Login');
-    console.log('  POST /api/client-login - Demo client login');
-    console.log('  POST /api/manager-login - Demo manager login');
-    console.log('  POST /api/logout - Logout');
-    console.log('  POST /api/clients - Register client');
-    console.log('  GET /api/dashboard - Dashboard data');
-    console.log('  POST /submit - Submit service request');
-    console.log('  POST /api/requests - Create service request');
-    console.log('  GET /api/requests/:id? - Get requests');
-});

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Layout, Card, Form, Input, Button, Alert, Typography, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, HomeOutlined, UserAddOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthProvider.jsx';
@@ -9,7 +9,6 @@ const { Title } = Typography;
 
 const Register = () => {
     const { register } = useAuth();
-    const navigate = useNavigate();
     const [form] = Form.useForm();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -33,20 +32,21 @@ const Register = () => {
     };
 
     return (
-        <Layout style={{ height: '100vh', background: '#f0f2f5' }}>
+        <Layout style={{ height: '100vh', background: '#f8f9fa' }}>
             <Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '10px', overflow: 'auto' }}>
                 <Card 
                     style={{ 
                         width: '100%', 
                         maxWidth: '450px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        border: '1px solid #dee2e6',
+                        backgroundColor: '#fff',
                         maxHeight: '95vh',
                         overflow: 'auto'
                     }}
                 >
                     <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                         <Title level={3}>
-                            <UserAddOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                            <UserAddOutlined style={{ marginRight: '8px', color: '#495057' }} />
                             Register
                         </Title>
                         <Link to="/" style={{ color: '#666', fontSize: '12px' }}>
@@ -75,7 +75,7 @@ const Register = () => {
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
                                 <Form.Item
-                                    name="first_name"
+                                    name="firstName"
                                     label="First Name"
                                     rules={[{ required: true, message: 'Please input your first name!' }]}
                                 >
@@ -87,7 +87,7 @@ const Register = () => {
                             </Col>
                             <Col xs={24} sm={12}>
                                 <Form.Item
-                                    name="last_name"
+                                    name="lastName"
                                     label="Last Name"
                                     rules={[{ required: true, message: 'Please input your last name!' }]}
                                 >
@@ -137,7 +137,7 @@ const Register = () => {
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
                                 <Form.Item
-                                    name="phone_number"
+                                    name="phoneNumber"
                                     label="Phone Number"
                                 >
                                     <Input 
@@ -148,7 +148,7 @@ const Register = () => {
                             </Col>
                             <Col xs={24} sm={12}>
                                 <Form.Item
-                                    name="card_number"
+                                    name="cardNumber"
                                     label="Card Number"
                                 >
                                     <Input 

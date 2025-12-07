@@ -7,103 +7,116 @@ USE `mj_cleaning_services`;
 
 -- Create admins table if it does not exist
 CREATE TABLE IF NOT EXISTS admins (
-    admin_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL
+    email VARCHAR(100),
+    passwordHash VARCHAR(255) NOT NULL
 );
 
 
 -- Create clients table if it does not exist
 CREATE TABLE IF NOT EXISTS clients (
-    client_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
+    firstName VARCHAR(100) NOT NULL,
+    lastName VARCHAR(100) NOT NULL,
     address TEXT,
 
-    phone_number VARCHAR(20),
+    phoneNumber VARCHAR(20),
     email VARCHAR(100),
-    card_number VARCHAR(32),
+    cardNumber VARCHAR(32),
 
-    password_hash VARCHAR(255) NOT NULL
+    passwordHash VARCHAR(255) NOT NULL
 );
 
 
 -- Create service_requests table if it does not exist
 CREATE TABLE IF NOT EXISTS service_requests (
-    request_id INT AUTO_INCREMENT PRIMARY KEY,
-    client_id INT NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    clientId INT NOT NULL,
 
-    service_address TEXT,
-    cleaning_type VARCHAR(50),      -- basic, deep, move_in, move_out, post_renovation
-    room_count INT,
-    time DATETIME,
+    serviceAddress TEXT,
+    serviceType VARCHAR(50),        -- basic, deep, move_in, move_out, post_renovation
+    numRooms INT,
+    serviceDate DATETIME,
 
-    budget DECIMAL(10,2),
+    clientBudget DECIMAL(10,2),
     addOutdoor BOOLEAN DEFAULT FALSE,
     note TEXT,
     state VARCHAR(50),              -- pending, rejected, quoted, accepted, cancelled
 
-    photo1_path VARCHAR(255),
-    photo2_path VARCHAR(255),
-    photo3_path VARCHAR(255),
-    photo4_path VARCHAR(255),
-    photo5_path VARCHAR(255),
+    -- Manager/Admin fields
+    managerQuote DECIMAL(10,2),
+    scheduledTime DATETIME,
+    managerNote TEXT,
 
-    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Status fields
+    isPaid BOOLEAN DEFAULT FALSE,
+    isDisputed BOOLEAN DEFAULT FALSE,
+    disputeNote TEXT,
+    pendingRevision BOOLEAN DEFAULT FALSE,
+    completionDate DATE,
 
-    FOREIGN KEY (client_id) REFERENCES clients(client_id)
+    photo1Path VARCHAR(255),
+    photo2Path VARCHAR(255),
+    photo3Path VARCHAR(255),
+    photo4Path VARCHAR(255),
+    photo5Path VARCHAR(255),
+
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (clientId) REFERENCES clients(id)
 );
 
 
 -- Create records table if it does not exist
 CREATE TABLE IF NOT EXISTS records (
-    record_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    item_type VARCHAR(20),          -- record or message
+    itemType VARCHAR(20),          -- record or message
 
-    request_id INT,
-    ref_id INT,
+    requestId INT,
+    refId INT,
 
     price DECIMAL(10,2),
-    time VARCHAR(100),              -- business time (not auto-generated)
+    businessTime VARCHAR(100),      -- business time (not auto-generated)
 
-    sender_name VARCHAR(50),        -- client or admin
-    message_body TEXT,
+    senderName VARCHAR(50),        -- client or admin
+    messageBody TEXT,
 
     state VARCHAR(50),              -- pending, countered, accepted, rejected
 
-    FOREIGN KEY (request_id) REFERENCES service_requests(request_id)
+    FOREIGN KEY (requestId) REFERENCES service_requests(id)
 );
 
 
 -- Create orders table if it does not exist
 CREATE TABLE IF NOT EXISTS orders (
-    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    record_id INT NOT NULL,
-    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    recordId INT NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (record_id) REFERENCES records(record_id)
+    FOREIGN KEY (recordId) REFERENCES records(id)
 );
 
 
 -- Create bills table if it does not exist
 CREATE TABLE IF NOT EXISTS bills (
-    bill_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
-    item_type VARCHAR(20),          -- bill or message
+    itemType VARCHAR(20),          -- bill or message
 
-    order_id INT,
-    ref_id INT,
+    orderId INT,
+    refId INT,
 
     amount DECIMAL(10,2),
     state VARCHAR(50),              -- unpaid, paid, disputed
 
-    sender_name VARCHAR(50),        -- client or admin
-    message_body TEXT,
+    senderName VARCHAR(50),        -- client or admin
+    messageBody TEXT,
 
-    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+    FOREIGN KEY (orderId) REFERENCES orders(id)
 );

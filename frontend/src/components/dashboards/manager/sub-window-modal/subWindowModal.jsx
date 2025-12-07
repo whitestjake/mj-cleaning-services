@@ -1,57 +1,33 @@
-
-
 import { useState } from "react";
 
 import "./subWindowModal.css";
 
+const allowedActionTypes = new Set(["new", "pending", "queued", "completed"]);
+
 const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
   const [enlargedIndex, setEnlargedIndex] = useState(null);
+  const hasPhotos = Array.isArray(data.photos) && data.photos.length > 0;
 
-  // ============================
-  // PHOTO PREVIEW HANDLERS
-  // ============================
-
-  const openPhoto = (idx) => setEnlargedIndex(idx);
+  const openPhoto = (idx) => {
+    if (!hasPhotos) return;
+    setEnlargedIndex(idx);
+  };
   const closePhoto = () => setEnlargedIndex(null);
-  const nextPhoto = () => setEnlargedIndex((prev) => (prev + 1) % data.photos.length);
-  const prevPhoto = () => setEnlargedIndex((prev) => (prev - 1 + data.photos.length) % data.photos.length);
-
-  // ============================
-  // DEFAULT ACTION BUTTONS
-  // ============================
-
-  const renderDefaultActions = () => {
-    switch (type) {
-      case "new":
-        // "Send Quote" button should come from parent actions
-        return actions || null;
-
-      case "pending":
-        // Accept/Reject buttons handled by parent
-        return actions || null;
-
-      case "queued":
-        // "Mark as Completed" button handled by parent
-        return actions || null;
-
-      case "completed":
-        return actions || null;
-        
-      case "client":
-      default:
-        // No default actions
-        return null;
-    }
+  const nextPhoto = () => {
+    if (!hasPhotos) return;
+    setEnlargedIndex((prev) => (prev + 1) % data.photos.length);
+  };
+  const prevPhoto = () => {
+    if (!hasPhotos) return;
+    setEnlargedIndex((prev) => (prev - 1 + data.photos.length) % data.photos.length);
   };
 
-  // ============================
-  // RENDER
-  // ============================
+  const shouldRenderActions = actions && allowedActionTypes.has(type);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-window" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}>×</button>
+        <button className="modal-close-btn" onClick={onClose}>x</button>
         <h2>{title}</h2>
 
         <div className="modal-content">
@@ -66,7 +42,7 @@ const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
         </div>
 
         {/* Photo gallery */}
-        {data.photos && data.photos.length > 0 && (
+        {hasPhotos && (
           <div className="modal-photo-gallery">
             <h4>Uploaded Photos:</h4>
             <div className="photo-thumbnails">
@@ -82,13 +58,12 @@ const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
           </div>
         )}
 
-        {/* Action buttons */}
-        {renderDefaultActions() && <div className="modal-actions">{renderDefaultActions()}</div>}
+        {shouldRenderActions && <div className="modal-actions">{actions}</div>}
 
         {/* Enlarged photo overlay */}
         {enlargedIndex !== null && (
           <div className="enlarged-photo-overlay" onClick={closePhoto}>
-            <button className="carousel-btn prev" onClick={(e) => { e.stopPropagation(); prevPhoto(); }}>‹</button>
+            <button className="carousel-btn prev" onClick={(e) => { e.stopPropagation(); prevPhoto(); }}>&lt;</button>
             <img
               src={
                 typeof data.photos[enlargedIndex] === "string"
@@ -97,7 +72,7 @@ const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
               }
               alt=""
             />
-            <button className="carousel-btn next" onClick={(e) => { e.stopPropagation(); nextPhoto(); }}>›</button>
+            <button className="carousel-btn next" onClick={(e) => { e.stopPropagation(); nextPhoto(); }}>&gt;</button>
           </div>
         )}
       </div>

@@ -1,8 +1,5 @@
-
-
-
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthProvider.jsx"; // adjust path
+import { useAuth } from "../../context/AuthProvider.jsx";
 
 const ProtectedRoute = ({ requiredRole, children }) => {
   const { isLoggedIn, user } = useAuth();

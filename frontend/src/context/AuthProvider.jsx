@@ -2,7 +2,7 @@
 
 import { createContext, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser } from "../apiLogin.js";
+import { loginUser, registerUser } from "../apiLogin.js";
 
 const AuthContext = createContext();
 
@@ -26,6 +26,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    const response = await registerUser(userData);
+
+    if (response.success) {
+      // Registration successful, redirect to login
+      navigate('/login');
+      return { success: true, message: 'Registration successful! Please login.' };
+    } else {
+      return { success: false, message: response.message };
+    }
+  };
+
   const logout = () => {
     setUser(null);
     navigate("/login");
@@ -34,7 +46,7 @@ export const AuthProvider = ({ children }) => {
   const isLoggedIn = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

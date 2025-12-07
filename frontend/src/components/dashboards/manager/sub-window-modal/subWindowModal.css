@@ -21,9 +21,9 @@
   padding: 25px;
   width: 450px;
   max-height: 90vh;
-  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Close button */
@@ -156,6 +156,7 @@
   cursor: pointer;
   padding: 10px 15px;
   border-radius: 50%;
+  -webkit-user-select: none;
   user-select: none;
 }
 

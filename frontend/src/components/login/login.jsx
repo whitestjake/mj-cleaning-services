@@ -27,16 +27,16 @@ const Login = () => {
     };
 
     return (
-        <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+        <Layout style={{ minHeight: '100vh', background: '#f8f9fa' }}>
             <Content style={{ 
                 display: 'flex', 
                 justifyContent: 'center', 
                 alignItems: 'center',
                 padding: '20px'
             }}>
-                <Card style={{ width: '400px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}>
+                <Card style={{ width: '400px', border: '1px solid #dee2e6', backgroundColor: '#fff' }}>
                     <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                        <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                        <Title level={2} style={{ margin: 0, color: '#495057' }}>
                             <LoginOutlined /> Login
                         </Title>
                     </div>

@@ -61,20 +61,26 @@ const RequestForm = () => {
         try {
             const formData = new FormData();
 
-            // Add form fields
             Object.keys(values).forEach(key => {
                 if (key !== 'photos') {
-                    formData.append(key, values[key] || '');
+                    let value = values[key];
+                    if (key === 'serviceDate' && value) {
+                        value = value.format('YYYY-MM-DD HH:mm:ss');
+                    }
+                    formData.append(key, value || '');
                 }
             });
 
-            // Add photos
             photos.forEach((file) => {
                 formData.append('photos', file.originFileObj || file);
             });
 
-            const response = await fetch('/submit', {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/service-requests', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: formData
             });
 
@@ -170,6 +176,22 @@ const RequestForm = () => {
                     <Col xs={24} sm={12}>
                         <Form.Item name="clientBudget" label="Budget" style={{ marginBottom: '12px' }}>
                             <Input placeholder="Optional" size="small" />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24}>
+                        <Form.Item 
+                            name="note" 
+                            label="Additional Notes / Special Requirements" 
+                            style={{ marginBottom: '12px' }}
+                        >
+                            <TextArea 
+                                rows={3} 
+                                placeholder="Any special instructions or requirements for the cleaning service..." 
+                                size="small"
+                                maxLength={500}
+                                showCount
+                            />
                         </Form.Item>
                     </Col>
 

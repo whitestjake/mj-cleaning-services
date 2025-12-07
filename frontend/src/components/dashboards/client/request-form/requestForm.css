@@ -5,8 +5,7 @@
     display: flex;
     width: 300px;
     margin: 25px auto;
-    border: 2px solid #ccc;
-    border-radius: 8px;
+    border: 1px solid #dee2e6;
     overflow: hidden;
 }
 
@@ -17,7 +16,7 @@
     left: 0;
     width: 33.33%;
     height: 100%;
-    background: #aee0ff;
+    background: #495057;
     transition: transform 0.3s ease;
     z-index: 1;       /* highlight behind buttons */
 }
@@ -32,6 +31,11 @@
     z-index: 2;      /* buttons ABOVE the highlight */
     position: relative;  /* required for z-index to apply */
     font-weight: bold;
+    color: #495057;
+}
+
+.service-selector button.active {
+    color: #fff;
 }
 
 .client-form {
@@ -44,13 +48,14 @@
 
 .client-form input {
     padding: 8px;
+    border: 1px solid #dee2e6;
 }
 
 .estimate-box {
     margin-top: 15px;
     padding: 10px;
-    background: #eee;
-    border-radius: 6px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
     text-align: center;
 }
 
@@ -75,18 +80,16 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid #ccc;
+    border: 1px solid #dee2e6;
 }
 
 .remove-photo-btn {
     position: absolute;
     top: 5px;
     right: 5px;
-    background: red;
+    background: #495057;
     color: white;
-    border: none;
+    border: 1px solid #495057;
     padding: 2px 5px;
-    border-radius: 4px;
     cursor: pointer;
 }

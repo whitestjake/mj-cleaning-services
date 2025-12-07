@@ -1,7 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthProvider.jsx';
-import Nav from './components/nav/nav.jsx';
 
 import './App.css';
 
@@ -19,7 +18,6 @@ function App() {
   return (
     <div className="App">
       <AuthProvider>
-        <Nav />
         <Routes>
           {/* Home, Login, Register apart of navbar */}
           <Route path='/' element={<Home />} />
