@@ -11,7 +11,8 @@ import {
     UserOutlined,
     LogoutOutlined,
     HomeOutlined,
-    StopOutlined
+    StopOutlined,
+    BarChartOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthProvider.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ import PendingResponses from "./pending-response/pendingResponse.jsx";
 import AwaitingCompletion from "./awaiting-completion/awaitingCompletion.jsx";
 import AcceptedRequests from "./accepted-requests/acceptedRequests.jsx";
 import ClientList from "./client-list/clientList.jsx";
+import Statistics from "./statistics/statistics.jsx";
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -110,6 +112,11 @@ const ManagerDashboard = () => {
       key: 'clients',
       icon: <UserOutlined />,
       label: 'Clients',
+    },
+    {
+      key: 'statistics',
+      icon: <BarChartOutlined />,
+      label: 'Statistics & Reports',
     },
   ];
 
@@ -248,6 +255,9 @@ const ManagerDashboard = () => {
             <ClientList
               data={clients}
             />
+          )}
+          {activeTab === "statistics" && (
+            <Statistics />
           )}
         </Content>
       </Layout>

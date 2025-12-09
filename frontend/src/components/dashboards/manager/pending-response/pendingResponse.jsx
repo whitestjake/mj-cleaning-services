@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { RequestsAPI } from "../../../../api.js";
-import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
+import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
 import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
 import FilterTable from '../filter-bar/filterBar.jsx';
@@ -25,13 +25,71 @@ const PendingResponse = () => {
   }, []);
 
   const openModal = async (req) => {
-    setSelectedRequest(req);
+    // Build photos array for SubWindowModal
+    const photos = [
+      req.photo1Path,
+      req.photo2Path,
+      req.photo3Path,
+      req.photo4Path,
+      req.photo5Path
+    ].filter(Boolean).map(path => `http://localhost:5000${path}`);
+    
+    setSelectedRequest({ ...req, photos });
     
     try {
       const records = await fetchNegotiationRecords(req.id);
       setNegotiationHistory(records);
     } catch (err) {
       message.error('Failed to fetch negotiation history');
+    }
+  };
+
+  const handleAcceptCounterOffer = async () => {
+    if (!selectedRequest) return;
+
+    try {
+      // Find the latest client counter-offer
+      const clientOffers = negotiationHistory.filter(r => 
+        r.itemType === 'quote' && r.senderName === 'client'
+      );
+      
+      if (clientOffers.length === 0) {
+        message.error('No client counter-offer found');
+        return;
+      }
+
+      const latestOffer = clientOffers[0]; // First one is the latest (DESC order)
+
+      // Update status to accepted
+      const statusResult = await RequestsAPI.updateStatus(selectedRequest.id, 'accepted');
+      
+      if (!statusResult.success) {
+        throw new Error('Failed to update status');
+      }
+
+      // Update the request with the client's counter-offer price
+      await RequestsAPI.update(selectedRequest.id, {
+        managerQuote: latestOffer.price,
+        scheduledTime: latestOffer.businessTime,
+        managerNote: `Accepted client's counter-offer of $${latestOffer.price}`
+      });
+
+      // Add a record showing manager accepted the counter-offer
+      await RequestsAPI.addRecord(selectedRequest.id, {
+        itemType: 'message',
+        messageBody: `Manager accepted client's counter-offer of $${latestOffer.price}`,
+        senderName: 'manager'
+      });
+
+      message.success('Counter-offer accepted! Service scheduled.');
+      
+      // Refresh the list
+      const data = await RequestsAPI.getByStatus("pending_response");
+      setPending(data);
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Accept counter-offer error:', error);
+      message.error('Failed to accept counter-offer');
     }
   };
 
@@ -42,140 +100,52 @@ const PendingResponse = () => {
   ];
 
   const modalFields = [
+    // Basic Information
     { label: "Client Name", key: "clientName" },
     { label: "Phone", key: "phone" },
+    { label: "Service Address", key: "serviceAddress" },
+    
+    // Service Details
     { label: "Service Type", key: "serviceType" },
     { label: "Number of Rooms", key: "numRooms" },
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
-    { label: "Address", key: "serviceAddress" },
-    { label: "Client Notes", key: "note" },
+    { label: "Requested Date", key: "serviceDate", render: (date) => formatDateTime(date) },
+    
+    // Pricing
     { 
-      label: "System Estimated Cost", 
+      label: "System Estimate", 
       key: "systemEstimate", 
       render: (estimate) => estimate ? (
-        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#52c41a', backgroundColor: '#f6ffed', padding: '4px 12px', borderRadius: '4px', border: '1px solid #b7eb8f' }}>
-          ${estimate}
+        <span style={{ fontSize: '14px', color: '#8c8c8c' }}>
+          💻 ${estimate} <small>(Auto-calculated)</small>
         </span>
-      ) : (
-        <span style={{ color: '#999' }}>Not calculated</span>
-      )
+      ) : '-'
     },
     { 
       label: "Client Budget", 
       key: "clientBudget", 
       render: (budget) => budget ? (
-        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff', backgroundColor: '#e6f7ff', padding: '4px 12px', borderRadius: '4px', border: '1px solid #91d5ff' }}>
-          ${budget}
+        <span style={{ fontSize: '14px', fontWeight: '500', color: '#1890ff' }}>
+          💰 ${budget}
         </span>
-      ) : (
-        <span style={{ color: '#999' }}>No limit</span>
-      )
+      ) : <span style={{ color: '#999' }}>Not specified</span>
     },
     { 
       label: "Manager Quote", 
       key: "managerQuote", 
-      render: (quote, data) => {
-        // Find the latest accepted quote from negotiation history
-        const acceptedQuotes = negotiationHistory.filter(r => 
-          r.itemType === 'quote' && 
-          r.clientResponse && 
-          r.clientResponse.includes('Accepted')
-        );
-        const latestAcceptedQuote = acceptedQuotes.length > 0 ? acceptedQuotes[0] : null;
-        const finalPrice = latestAcceptedQuote ? latestAcceptedQuote.price : quote;
-        
-        return finalPrice ? (
-          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#52c41a' }}>
-            ${finalPrice}
-          </span>
-        ) : '-';
-      }
+      render: (quote) => quote ? (
+        <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a' }}>
+          ${quote}
+        </span>
+      ) : '-'
     },
     { label: "Scheduled Time", key: "scheduledTime", render: (date) => formatDateTime(date) },
-    { label: "Manager Note", key: "managerNote" },
-    {
-      label: "Uploaded Photos",
-      key: "photos",
-      render: (_, data) => {
-        const photos = [
-          data.photo1Path,
-          data.photo2Path,
-          data.photo3Path,
-          data.photo4Path,
-          data.photo5Path
-        ].filter(Boolean);
-
-        return photos.length > 0 ? (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-            {photos.map((photo, idx) => (
-              <img
-                key={idx}
-                src={`http://localhost:5000${photo}`}
-                alt={`Uploaded ${idx + 1}`}
-                style={{ 
-                  width: '120px', 
-                  height: '120px', 
-                  objectFit: 'cover',
-                  cursor: 'pointer',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '4px'
-                }}
-                onClick={() => window.open(`http://localhost:5000${photo}`, '_blank')}
-              />
-            ))}
-          </div>
-        ) : (
-          <span style={{ color: '#999' }}>No photos uploaded</span>
-        );
-      }
-    },
+    
+    // Negotiation History
     {
       label: "Negotiation History",
       key: "negotiationHistory",
-      render: () => (
-        negotiationHistory.length > 0 ? (
-          <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <Timeline mode="left">
-              {negotiationHistory.map((record, idx) => {
-                const isManagerQuote = record.itemType === 'record' && record.senderName === 'manager';
-                const isClientResponse = record.senderName === 'client';
-                
-                return (
-                  <Timeline.Item 
-                    key={idx}
-                    color={isManagerQuote ? 'green' : isClientResponse ? 'blue' : 'gray'}
-                    dot={<ClockCircleOutlined />}
-                  >
-                    <div>
-                      <strong style={{ color: isManagerQuote ? '#52c41a' : '#1890ff' }}>
-                        {isManagerQuote ? '💼 Manager Quote' : isClientResponse ? '👤 Client Response' : '📝 Note'}
-                      </strong>
-                      <br />
-                      <small style={{ color: '#999' }}>
-                        {new Date(record.createdAt || new Date()).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </small>
-                      <div style={{ marginTop: '8px' }}>
-                        {record.price && <div><strong>Price:</strong> ${record.price}</div>}
-                        {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
-                        {record.messageBody && <div><strong>Note:</strong> {record.messageBody}</div>}
-                        {record.state && <div><strong>Status:</strong> {record.state}</div>}
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                );
-              })}
-            </Timeline>
-          </div>
-        ) : (
-          <p style={{ color: '#999' }}>No negotiation history yet</p>
-        )
-      )
+      render: (_, data) => renderNegotiationHistory(negotiationHistory, { Timeline, ClockCircleOutlined }, data)
     }
   ];
 
@@ -192,7 +162,24 @@ const PendingResponse = () => {
           fields={modalFields}
           onClose={() => setSelectedRequest(null)}
           type="pending"
-          actions={null}
+          actions={
+            <button
+              className='accept-counter-offer-btn'
+              onClick={handleAcceptCounterOffer}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#52c41a',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Accept Counter-Offer
+            </button>
+          }
         />
       )}
     </div>

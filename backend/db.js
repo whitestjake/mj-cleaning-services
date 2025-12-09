@@ -51,12 +51,19 @@ async function addClient({ firstName, lastName, address, phoneNumber, email, car
         throw new Error('Missing required fields');
     }
     const hash = await bcrypt.hash(password, 10);
+    
+    // Generate unique clientID: Simple incremental number
+    const [maxIdResult] = await pool.query(
+        `SELECT MAX(CAST(SUBSTRING(clientID, 2) AS UNSIGNED)) as maxId FROM clients WHERE clientID REGEXP '^[0-9]+$'`
+    );
+    const nextId = (maxIdResult[0].maxId || 0) + 1;
+    const clientID = String(nextId).padStart(6, '0');
 
     await pool.query(
         `INSERT INTO clients (
-            firstName, lastName, address, phoneNumber, email, cardNumber, passwordHash
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [firstName, lastName, address, phoneNumber, email, cardNumber, hash]
+            clientID, firstName, lastName, address, phoneNumber, email, cardNumber, passwordHash
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [clientID, firstName, lastName, address, phoneNumber, email, cardNumber, hash]
     );
 }
 async function getClient(id) {
@@ -69,6 +76,7 @@ async function getAllClients() {
     const [rows] = await pool.query(`
         SELECT 
             c.id,
+            c.clientID,
             c.firstName,
             c.lastName,
             c.email,
@@ -133,7 +141,13 @@ async function addServiceRequest({
 // Get single service request
 async function getServiceRequest(id) {
     const [rows] = await pool.query(
-        `SELECT * FROM service_requests WHERE id = ?`,
+        `SELECT sr.*, 
+                c.cardNumber,
+                CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+                c.phoneNumber AS phone
+         FROM service_requests sr
+         LEFT JOIN clients c ON sr.clientId = c.id
+         WHERE sr.id = ?`,
         [id]
     );
     return rows[0];
@@ -156,6 +170,7 @@ async function getServiceRequests(clientId) {
     if (clientId) {
         [rows] = await pool.query(
             `SELECT sr.*, 
+                    c.cardNumber,
                     CONCAT(c.firstName, ' ', c.lastName) AS clientName,
                     c.phoneNumber AS phone
              FROM service_requests sr
@@ -164,7 +179,14 @@ async function getServiceRequests(clientId) {
             [clientId]
         );
     } else {
-        [rows] = await pool.query(`SELECT * FROM service_requests`);
+        [rows] = await pool.query(
+            `SELECT sr.*, 
+                    c.cardNumber,
+                    CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+                    c.phoneNumber AS phone
+             FROM service_requests sr
+             LEFT JOIN clients c ON sr.clientId = c.id`
+        );
     }
     
     return rows.map(transformPhotoPathsToArray);
@@ -205,7 +227,7 @@ async function getServiceRequestsWithClient() {
     const [rows] = await pool.query(`
         SELECT 
             sr.*,
-            c.firstName, c.lastName, c.email, c.phoneNumber,
+            c.firstName, c.lastName, c.email, c.phoneNumber, c.cardNumber,
             CONCAT(c.firstName, ' ', c.lastName) AS clientName,
             c.phoneNumber AS phone
         FROM service_requests sr
@@ -256,12 +278,12 @@ async function updateQuoteResponse(requestId, clientResponse, responseState) {
 }
 
 // Add message record
-async function addMessage(requestId, senderName, messageBody, refId = null) {
+async function addMessage(requestId, senderName, messageBody) {
     await pool.query(
         `INSERT INTO records (
-            itemType, requestId, refId, senderName, messageBody, state
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
-        ['message', requestId, refId, senderName, messageBody, 'sent']
+            itemType, requestId, senderName, messageBody, state
+        ) VALUES (?, ?, ?, ?, ?)`,
+        ['message', requestId, senderName, messageBody, 'sent']
     );
 }
 

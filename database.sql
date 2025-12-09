@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS admins (
 -- Create clients table if it does not exist
 CREATE TABLE IF NOT EXISTS clients (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    clientID VARCHAR(50) UNIQUE NOT NULL,  -- Unique client ID (e.g., CL-20251208-0001)
 
     firstName VARCHAR(100) NOT NULL,
     lastName VARCHAR(100) NOT NULL,
@@ -24,7 +25,7 @@ CREATE TABLE IF NOT EXISTS clients (
 
     phoneNumber VARCHAR(20),
     email VARCHAR(100),
-    cardNumber VARCHAR(32),
+    cardNumber VARCHAR(32), 
 
     passwordHash VARCHAR(255) NOT NULL
 );
@@ -53,7 +54,10 @@ CREATE TABLE IF NOT EXISTS service_requests (
 
     -- Status fields
     isPaid BOOLEAN DEFAULT FALSE,
+    clientPaid BOOLEAN DEFAULT FALSE,
     completionDate DATETIME,
+    isDisputed BOOLEAN DEFAULT FALSE,
+    disputeNote TEXT,
 
     photo1Path VARCHAR(255),
     photo2Path VARCHAR(255),
@@ -74,7 +78,6 @@ CREATE TABLE IF NOT EXISTS records (
     itemType VARCHAR(20),          -- quote, message
 
     requestId INT,
-    refId INT,
 
     price DECIMAL(10,2),
     businessTime VARCHAR(100),      -- business time (not auto-generated)

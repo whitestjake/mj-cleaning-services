@@ -154,6 +154,7 @@ const Register = () => {
                                     <Input 
                                         prefix={<CreditCardOutlined />} 
                                         placeholder="Card (Optional)"
+                                        maxLength={19}
                                     />
                                 </Form.Item>
                             </Col>

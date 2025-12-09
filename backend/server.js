@@ -12,6 +12,7 @@ dotenv.config({ path: path.join(__dirname, 'database.env') });
 
 // Import database functions
 const {
+    pool,
     addClient,
     authenticateClient,
     authenticateAdmin,
@@ -76,7 +77,7 @@ const upload = multer({
 const JWT_SECRET = process.env.JWT_SECRET || 'default-dev-secret-key-change-in-production';
 
 if (!process.env.JWT_SECRET) {
-  console.warn('WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!');
+  console.warn('\nWARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!\n');
 }
 
 const authenticateToken = (req, res, next) => {
@@ -263,6 +264,17 @@ app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), 
 
     const requestId = await addServiceRequest(requestData);
     
+    // Create initial client quote record if budget is provided
+    if (clientBudget && parseFloat(clientBudget) > 0) {
+      await addQuote(
+        requestId,
+        parseFloat(clientBudget),
+        serviceDate,
+        note || 'Initial client budget',
+        'client'
+      );
+    }
+    
     res.json({ 
       success: true, 
       message: 'Service request created successfully',
@@ -366,8 +378,8 @@ app.put('/api/service-requests/:id', authenticateToken, async (req, res) => {
           message: 'Access denied' 
         });
       }
-      // Clients can only update state and renegotiation fields
-      const allowedFields = ['state', 'clientAdjustment', 'isRenegotiation'];
+      // Clients can only update state, payment, and renegotiation fields
+      const allowedFields = ['state', 'clientAdjustment', 'isRenegotiation', 'clientPaid', 'isDisputed', 'disputeNote'];
       const clientUpdates = {};
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key)) {
@@ -450,6 +462,50 @@ app.put('/api/service-requests/:id/status', authenticateToken, async (req, res) 
     res.status(500).json({ 
       success: false, 
       message: 'Failed to update request status' 
+    });
+  }
+});
+
+// Client disputes a bill
+app.post('/api/service-requests/:id/dispute', authenticateToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const { disputeNote } = req.body;
+
+    // Verify request exists and client owns it
+    const request = await getServiceRequest(requestId);
+    if (!request) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Service request not found' 
+      });
+    }
+
+    if (req.user.role === 'client' && request.clientId !== req.user.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied' 
+      });
+    }
+
+    // Update request with dispute information
+    await updateServiceRequest(requestId, { 
+      isDisputed: true, 
+      disputeNote: disputeNote 
+    });
+
+    // Add a record for the dispute
+    await addMessage(requestId, 'client', `Bill disputed: ${disputeNote}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Dispute submitted successfully' 
+    });
+  } catch (error) {
+    console.error('Dispute bill error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to submit dispute' 
     });
   }
 });
@@ -556,6 +612,212 @@ app.post('/api/service-requests/:id/message', authenticateToken, async (req, res
       success: false, 
       message: 'Failed to send message' 
     });
+  }
+});
+
+// ==================== Statistics/Reports API ====================
+
+// 1. Frequent clients - clients with most completed orders
+app.get('/api/statistics/frequent-clients', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.clientID, 
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        c.email,
+        COUNT(sr.id) AS completedOrders
+      FROM clients c
+      INNER JOIN service_requests sr ON c.id = sr.clientId
+      WHERE sr.state = 'completed'
+      GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+      ORDER BY completedOrders DESC
+      LIMIT 10
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Frequent clients error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 2. Uncommitted clients - 3+ requests but never completed
+app.get('/api/statistics/uncommitted-clients', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        c.email,
+        COUNT(sr.id) AS totalRequests,
+        SUM(CASE WHEN sr.state = 'completed' THEN 1 ELSE 0 END) AS completedOrders
+      FROM clients c
+      INNER JOIN service_requests sr ON c.id = sr.clientId
+      GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+      HAVING totalRequests >= 3 AND completedOrders = 0
+      ORDER BY totalRequests DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Uncommitted clients error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 3. This month's accepted quotes
+app.get('/api/statistics/monthly-quotes', authenticateToken, async (req, res) => {
+  try {
+    const { year, month } = req.query; // e.g., year=2024, month=12
+    const [rows] = await pool.query(`
+      SELECT 
+        sr.id,
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        sr.serviceType,
+        sr.managerQuote AS agreedPrice,
+        sr.createdAt AS quoteDate
+      FROM service_requests sr
+      INNER JOIN clients c ON sr.clientId = c.id
+      WHERE sr.state IN ('accepted', 'completed')
+        AND YEAR(sr.createdAt) = ?
+        AND MONTH(sr.createdAt) = ?
+      GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.managerQuote, sr.createdAt
+      ORDER BY sr.createdAt DESC
+    `, [year || new Date().getFullYear(), month || new Date().getMonth() + 1]);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Monthly quotes error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 4. Prospective clients - registered but never submitted request
+app.get('/api/statistics/prospective-clients', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        c.email,
+        c.phoneNumber
+      FROM clients c
+      LEFT JOIN service_requests sr ON c.id = sr.clientId
+      WHERE sr.id IS NULL
+      ORDER BY c.clientID DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Prospective clients error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 5. Largest jobs - most rooms completed
+app.get('/api/statistics/largest-jobs', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        sr.id,
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        sr.serviceType,
+        sr.numRooms,
+        sr.serviceAddress,
+        sr.completionDate
+      FROM service_requests sr
+      INNER JOIN clients c ON sr.clientId = c.id
+      WHERE sr.state = 'completed'
+      GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.numRooms, sr.serviceAddress, sr.completionDate
+      ORDER BY sr.numRooms DESC
+      LIMIT 10
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Largest jobs error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 6. Overdue bills - unpaid bills older than 1 week
+app.get('/api/statistics/overdue-bills', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        sr.id,
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        sr.serviceType,
+        sr.managerQuote AS billAmount,
+        sr.completionDate,
+        DATEDIFF(NOW(), sr.completionDate) AS daysOverdue
+      FROM service_requests sr
+      INNER JOIN clients c ON sr.clientId = c.id
+      WHERE sr.state = 'completed'
+        AND sr.isPaid = FALSE
+        AND sr.completionDate < DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.managerQuote, sr.completionDate
+      ORDER BY daysOverdue DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Overdue bills error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 7. Bad clients - never paid overdue bills
+app.get('/api/statistics/bad-clients', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        c.email,
+        COUNT(sr.id) AS overdueCount,
+        SUM(sr.managerQuote) AS totalOwed
+      FROM clients c
+      INNER JOIN service_requests sr ON c.id = sr.clientId
+      WHERE sr.state = 'completed'
+        AND sr.isPaid = FALSE
+        AND sr.completionDate < DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+      ORDER BY overdueCount DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Bad clients error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
+  }
+});
+
+// 8. Good clients - always paid within 24 hours
+app.get('/api/statistics/good-clients', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.clientID,
+        CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+        c.email,
+        COUNT(sr.id) AS totalCompletedOrders
+      FROM clients c
+      INNER JOIN service_requests sr ON c.id = sr.clientId
+      WHERE sr.state = 'completed'
+      GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+      HAVING 
+        totalCompletedOrders > 0
+        AND SUM(
+          CASE 
+            WHEN sr.isPaid = FALSE
+             AND sr.completionDate IS NOT NULL
+             AND sr.completionDate <= NOW() - INTERVAL 1 DAY
+            THEN 1 ELSE 0
+          END
+        ) = 0
+      ORDER BY totalCompletedOrders DESC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Good clients error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch data' });
   }
 });
 

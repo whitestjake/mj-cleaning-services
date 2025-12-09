@@ -94,7 +94,8 @@ const NewRequests = () => {
         // Add a record for rejection
         const recordResult = await RequestsAPI.addRecord(selectedRequest.id, {
           itemType: 'message',
-          messageBody: managerNotes || 'Manager declined this request'
+          messageBody: managerNotes || 'Manager declined this request',
+          senderName: 'manager'
         });
         
         if (!recordResult || !recordResult.success) {
@@ -166,8 +167,6 @@ const NewRequests = () => {
     { label: "Address", key: "serviceAddress" },
     { key: "createdAt", label: "Submitted Date", render: (date) => formatDateTime(date) },
     { label: "Requested Date/Time", key: "serviceDate", render: (date) => formatDateTime(date) },
-    { label: "Additional Notes / Special Requirements", key: "note" },
-    { label: "Budget (Optional)", key: "clientBudget", render: (budget) => budget ? `$${budget}` : "No limit specified" },
     
     // Latest Client Response & Full History (if exists) - Show history FIRST
     ...(selectedRequest?.managerQuote
@@ -246,39 +245,103 @@ const NewRequests = () => {
                         onClick={() => setShowFullHistory(!showFullHistory)}
                         style={{ padding: 0, marginBottom: '10px' }}
                       >
-                        {showFullHistory ? '📋 Hide Full History' : '📋 View Full Negotiation History'} ({negotiationHistory.length} records)
+                        {showFullHistory ? 'Hide Full History' : 'View Full Negotiation History'} ({negotiationHistory.length} records)
                       </Button>
                       
                       {showFullHistory && (
                         <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px', maxHeight: '400px', overflowY: 'auto' }}>
                           <Timeline mode="start">
-                            {negotiationHistory.map((record, idx) => {
-                              const isQuote = record.itemType === 'quote';
+                            {/* System Estimate */}
+                            {selectedRequest?.systemEstimate && (
+                              <Timeline.Item 
+                                color="gray"
+                                dot={<ClockCircleOutlined />}
+                              >
+                                <div>
+                                  <strong style={{ color: '#8c8c8c' }}>💻 System Estimate</strong>
+                                  <br />
+                                  <small style={{ color: '#999' }}>
+                                    {new Date(selectedRequest.createdAt).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </small>
+                                  <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: '4px' }}>
+                                    <div><strong>Estimated Price:</strong> ${selectedRequest.systemEstimate}</div>
+                                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#8c8c8c' }}>
+                                      Auto-calculated based on service parameters
+                                    </div>
+                                  </div>
+                                </div>
+                              </Timeline.Item>
+                            )}
+                            
+                            {/* Client Initial Budget */}
+                            {selectedRequest?.clientBudget && (
+                              <Timeline.Item 
+                                color="blue"
+                                dot={<ClockCircleOutlined />}
+                              >
+                                <div>
+                                  <strong style={{ color: '#1890ff' }}>💰 Client Initial Budget</strong>
+                                  <br />
+                                  <small style={{ color: '#999' }}>
+                                    {new Date(selectedRequest.createdAt).toLocaleString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </small>
+                                  <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '4px' }}>
+                                    <div><strong>Client's Budget:</strong> ${selectedRequest.clientBudget}</div>
+                                    {selectedRequest.note && (
+                                      <div style={{ marginTop: '4px' }}>
+                                        <strong>Note:</strong> {selectedRequest.note}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </Timeline.Item>
+                            )}
+                            
+                            {[...negotiationHistory].reverse().map((record, idx) => {
+                              const isManagerQuote = record.itemType === 'quote' && record.senderName === 'manager';
+                              const isClientQuote = record.itemType === 'quote' && record.senderName === 'client';
                               const hasResponse = record.clientResponse && record.responseTime;
                               const isAccepted = record.state === 'accepted';
                               const isRejected = record.state === 'rejected';
+                              const isManagerMessage = record.itemType === 'message' && record.senderName === 'manager';
+                              const isClientMessage = record.itemType === 'message' && record.senderName === 'client';
                               
                               return (
                                 <Timeline.Item 
                                   key={idx}
-                                  color={isAccepted ? 'green' : isRejected ? 'red' : 'blue'}
+                                  color={isAccepted ? 'green' : isRejected ? 'red' : (isManagerQuote || isManagerMessage) ? 'green' : 'blue'}
                                   dot={<ClockCircleOutlined />}
                                 >
                                   <div>
-                                    <strong style={{ color: isAccepted ? '#52c41a' : isRejected ? '#ff4d4f' : '#1890ff' }}>
-                                      {isQuote ? '💼 Manager Quote' : '📝 Note'}
-                                      {hasResponse && (isAccepted ? ' ✓ Accepted' : isRejected ? ' ✗ Rejected' : '')}
+                                    <strong style={{ color: isAccepted ? '#52c41a' : isRejected ? '#ff4d4f' : (isManagerQuote || isManagerMessage) ? '#52c41a' : '#1890ff' }}>
+                                      {isManagerQuote ? '💼 Manager Quote' : 
+                                       isClientQuote ? '💰 Client Offer' :
+                                       isManagerMessage ? '📝 Manager Message' :
+                                       isClientMessage ? 'Client Message' : 'System Note'}
+                                      {hasResponse && (isAccepted ? ' [Accepted]' : isRejected ? ' [Rejected]' : '')}
                                     </strong>
                                     <br />
                                     <small style={{ color: '#999' }}>
                                       {new Date(record.createdAt || new Date()).toLocaleString()}
                                     </small>
                                     
-                                    {isQuote && (
-                                      <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
+                                    {(isManagerQuote || isClientQuote) && (
+                                      <div style={{ marginTop: '8px', padding: '10px', backgroundColor: isManagerQuote ? '#f6ffed' : '#e6f7ff', border: `1px solid ${isManagerQuote ? '#b7eb8f' : '#91d5ff'}`, borderRadius: '4px' }}>
                                         {record.price && <div><strong>Price:</strong> ${record.price}</div>}
                                         {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
-                                        {record.messageBody && <div><strong>Manager Note:</strong> {record.messageBody}</div>}
+                                        {record.messageBody && <div><strong>{isManagerQuote ? 'Manager' : 'Client'} Note:</strong> {record.messageBody}</div>}
                                       </div>
                                     )}
                                     
@@ -321,15 +384,9 @@ const NewRequests = () => {
           r.itemType === 'quote' && 
           r.senderName === 'client'
         );
-        console.log('=== In Pricing Reference ===');
-        console.log('negotiationHistory:', negotiationHistory);
-        console.log('clientCounterOffers:', clientCounterOffers);
         
         const latestClientOffer = clientCounterOffers.length > 0 ? clientCounterOffers[0] : null;
         const displayBudget = latestClientOffer ? latestClientOffer.price : data.clientBudget;
-        
-        console.log('latestClientOffer:', latestClientOffer);
-        console.log('displayBudget:', displayBudget);
         
         return (
           <div style={{ backgroundColor: '#fafafa', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9' }}>

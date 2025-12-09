@@ -1,11 +1,11 @@
 
 
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { RequestsAPI } from '../../../../api.js';
-import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
+import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
 import SubWindowModal from '../sub-window-modal/subWindowModal.jsx';
 import FilterTable from "../filter-bar/filterBar.jsx";
@@ -15,7 +15,8 @@ import "../managerWindow.css";
 const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) => {
   const [completed, setCompleted] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [negotiationHistory, setNegotiationHistory] = useState([]);
+  const [currentNegotiationHistory, setCurrentNegotiationHistory] = useState([]);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     const fetchCompleted = async () => {
@@ -44,18 +45,22 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
                 cancelledBy = 'client';
                 cancelledDate = clientCancelRecord.responseTime || clientCancelRecord.createdAt;
               } else {
-                // Check if manager declined (message with decline/cancel)
+                // Check if manager declined/rejected
+                // Manager rejection can be:
+                // 1. Message with decline/cancel text
+                // 2. OR simply no client response (manager rejected before client responded)
                 const managerDeclineRecord = records.find(r => 
                   r.itemType === 'message' && 
-                  r.senderName === 'manager' &&
-                  r.messageBody && 
-                  (r.messageBody.toLowerCase().includes('declined') || 
-                   r.messageBody.toLowerCase().includes('cancel'))
+                  r.senderName === 'manager'
                 );
                 
                 if (managerDeclineRecord) {
                   cancelledBy = 'manager';
                   cancelledDate = managerDeclineRecord.createdAt;
+                } else if (records.length === 0 || !records.some(r => r.clientResponse)) {
+                  // If no records or no client response, it was manager rejection
+                  cancelledBy = 'manager';
+                  cancelledDate = request.createdAt;
                 }
               }
               
@@ -78,35 +83,95 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
         setCompleted(data);
       }
     };
+    
     fetchCompleted();
+    
+    // Poll for updates every 10 seconds to catch client payments
+    intervalRef.current = setInterval(() => {
+      fetchCompleted();
+    }, 10000);
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [isRejected]);
 
   const openModal = async (req) => {
-    setSelectedRequest(req);
-    
+    // Fetch fresh data from server to ensure we have latest payment status
     try {
+      const freshData = await RequestsAPI.getById(req.id);
+      
+      // Build photos array for SubWindowModal
+      const photos = [
+        freshData.photo1Path,
+        freshData.photo2Path,
+        freshData.photo3Path,
+        freshData.photo4Path,
+        freshData.photo5Path
+      ].filter(Boolean).map(path => `http://localhost:5000${path}`);
+      
+      setSelectedRequest({ ...freshData, photos });
+      
+      // Fetch negotiation records
       const records = await fetchNegotiationRecords(req.id);
-      setNegotiationHistory(records);
+      setCurrentNegotiationHistory(records);
     } catch (err) {
-      message.error('Failed to fetch negotiation history');
+      message.error('Failed to load request details');
+      console.error('Open modal error:', err);
     }
   };
 
   const handleMarkAsPaid = async (id) => {
-    await RequestsAPI.markAsPaid(id);
-    const data = await RequestsAPI.getByStatus('completed');
-    setCompleted(data);
-    setSelectedRequest((prev) => (prev ? { ...prev, isPaid: true } : null));
+    try {
+      await RequestsAPI.markAsPaid(id);
+      
+      // Add record for payment confirmation
+      await RequestsAPI.addRecord(id, {
+        itemType: 'message',
+        messageBody: 'Manager confirmed payment received',
+        senderName: 'manager'
+      });
+      
+      const data = await RequestsAPI.getByStatus('completed');
+      setCompleted(data);
+      setSelectedRequest((prev) => (prev ? { ...prev, isPaid: true } : null));
+      message.success('Payment confirmed!');
+    } catch (error) {
+      message.error('Failed to confirm payment');
+    }
   };
 
   const handleRevise = async (id, revisedQuote, revisedNote) => {
-    await RequestsAPI.reviseDisputedRequest(id, { managerQuote: revisedQuote, managerNote: revisedNote });
-    const data = await RequestsAPI.getByStatus('completed');
-    setCompleted(data);
-    setSelectedRequest((prev) => (prev
-      ? { ...prev, managerQuote: revisedQuote, managerNote: revisedNote, pendingRevision: true, isDisputed: false, disputeNote: "" }
-      : null
-    ));
+    try {
+      // Update the service request
+      await RequestsAPI.reviseDisputedRequest(id, { 
+        managerQuote: revisedQuote, 
+        managerNote: revisedNote,
+        isDisputed: false,
+        disputeNote: ''
+      });
+      
+      // Add a record for the bill revision
+      await RequestsAPI.addRecord(id, {
+        itemType: 'quote',
+        price: revisedQuote,
+        messageBody: `Bill revised: ${revisedNote || 'Adjusted pricing'}`,
+        senderName: 'manager',
+        businessTime: selectedRequest?.scheduledTime
+      });
+      
+      message.success('Bill revised successfully!');
+      const data = await RequestsAPI.getByStatus('completed');
+      setCompleted(data);
+      setSelectedRequest((prev) => (prev
+        ? { ...prev, managerQuote: revisedQuote, managerNote: revisedNote, pendingRevision: true, isDisputed: false, disputeNote: "" }
+        : null
+      ));
+    } catch (error) {
+      message.error('Failed to revise bill');
+    }
   };
 
   const columns = [
@@ -135,7 +200,19 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
       label: "Paid Status", 
       key: "isPaid", 
       filterType: "text", 
-      render: (val) => val ? <span className="status-badge status-paid">PAID</span> : <span className='status-badge status-unpaid'>UNPAID</span>
+      render: (val, data) => {
+        // Convert to boolean: MySQL BOOLEAN fields return 0/1
+        const isPaid = !!val;
+        const clientPaid = !!data.clientPaid;
+        
+        if (isPaid) {
+          return <span className="status-badge status-paid">PAID</span>;
+        } else if (clientPaid) {
+          return <span className="status-badge" style={{ backgroundColor: '#e6f7ff', color: '#1890ff', border: '1px solid #91d5ff', fontWeight: 'bold' }}>CLIENT PAID</span>;
+        } else {
+          return <span className='status-badge status-unpaid'>UNPAID</span>;
+        }
+      }
     }]),
   ];
 
@@ -143,18 +220,37 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
     // Basic Information
     { label: "Client Name", key: "clientName" },
     { label: "Phone", key: "phone" },
+    { label: "Service Address", key: "serviceAddress" },
+    
+    // Service Details
     { label: "Service Type", key: "serviceType" },
-    { label: "Rooms", key: "numRooms" },
+    { label: "Number of Rooms", key: "numRooms" },
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
-    { label: "Address", key: "serviceAddress" },
+    { label: "Requested Date", key: "serviceDate", render: (date) => date ? formatDateTime(date) : '-' },
     { label: "Completion Date", key: "completionDate", render: (date) => date ? formatDateTime(date) : '-' },
     
     // Pricing
+    {
+      label: "System Estimate",
+      key: "systemEstimate",
+      render: (val) => val ? (
+        <span style={{ color: '#8c8c8c', fontSize: '14px' }}>
+          💻 ${val} <small>(Auto-calculated)</small>
+        </span>
+      ) : '-'
+    },
+    {
+      label: "Client Budget",
+      key: "clientBudget",
+      render: (val) => val ? (
+        <span style={{ color: '#1890ff', fontSize: '14px', fontWeight: '500' }}>💰 ${val}</span>
+      ) : <span style={{ color: '#999' }}>Not specified</span>
+    },
     { 
       label: "Final Price", 
       key: "finalPrice", 
       render: (_, data) => {
-        const acceptedQuotes = negotiationHistory.filter(r => 
+        const acceptedQuotes = currentNegotiationHistory.filter(r => 
           r.itemType === 'quote' && 
           r.clientResponse && 
           r.clientResponse.includes('Accepted')
@@ -163,114 +259,97 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
         const finalPrice = latestAcceptedQuote ? latestAcceptedQuote.price : data.managerQuote;
         
         return (
-          <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#52c41a' }}>
+          <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
             ${finalPrice}
           </span>
         );
       }
     },
-    
     { 
       label: "Payment Status", 
       key: "isPaid", 
-      render: (val) => (
-        <span style={{ 
-          padding: '4px 12px', 
-          borderRadius: '4px', 
-          backgroundColor: val ? '#f6ffed' : '#fff7e6',
-          color: val ? '#52c41a' : '#fa8c16',
-          fontWeight: 'bold'
-        }}>
-          {val ? 'PAID' : 'UNPAID'}
-        </span>
-      )
-    },
-    
-    // Notes
-    { label: "Client Notes", key: "note" },
-    { label: "Manager Notes", key: "managerNote" },
-    
-    // Photos
-    {
-      label: "Photos",
-      key: "photos",
-      render: (_, data) => {
-        const photos = [
-          data.photo1Path,
-          data.photo2Path,
-          data.photo3Path,
-          data.photo4Path,
-          data.photo5Path
-        ].filter(Boolean);
-
-        return photos.length > 0 ? (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {photos.map((photo, idx) => (
-              <img
-                key={idx}
-                src={`http://localhost:5000${photo}`}
-                alt={`Uploaded ${idx + 1}`}
-                style={{ 
-                  width: '100px', 
-                  height: '100px', 
-                  objectFit: 'cover',
-                  cursor: 'pointer',
-                  borderRadius: '4px'
-                }}
-                onClick={() => window.open(`http://localhost:5000${photo}`, '_blank')}
-              />
-            ))}
-          </div>
-        ) : '-';
+      render: (val, data) => {
+        if (val) {
+          return (
+            <span style={{ 
+              padding: '6px 16px', 
+              borderRadius: '4px', 
+              backgroundColor: '#f6ffed',
+              color: '#52c41a',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}>
+              PAID & CONFIRMED
+            </span>
+          );
+        } else if (data.clientPaid) {
+          return (
+            <span style={{ 
+              padding: '6px 16px', 
+              borderRadius: '4px', 
+              backgroundColor: '#e6f7ff',
+              color: '#1890ff',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              display: 'inline-block'
+            }}>
+              💳 CLIENT PAID<br />
+              <small style={{ fontSize: '11px', fontWeight: 'normal' }}>(Awaiting Confirmation)</small>
+            </span>
+          );
+        } else if (data.isDisputed) {
+          return (
+            <span style={{ 
+              padding: '6px 16px', 
+              borderRadius: '4px', 
+              backgroundColor: '#fff1f0',
+              color: '#ff4d4f',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}>
+              ⚠ DISPUTED
+            </span>
+          );
+        } else {
+          return (
+            <span style={{ 
+              padding: '6px 16px', 
+              borderRadius: '4px', 
+              backgroundColor: '#fff7e6',
+              color: '#fa8c16',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}>
+              ⏳ UNPAID
+            </span>
+          );
+        }
       }
     },
+
+    // Dispute Information (if exists)
+    ...(selectedRequest?.isDisputed ? [{
+      label: "Dispute Reason",
+      key: "disputeNote",
+      render: (note) => (
+        <div style={{ 
+          padding: '12px', 
+          backgroundColor: '#fff1f0', 
+          border: '1px solid #ffa39e',
+          borderRadius: '4px',
+          marginTop: '8px'
+        }}>
+          <strong style={{ color: '#ff4d4f' }}>Client Dispute:</strong>
+          <div style={{ marginTop: '8px' }}>{note || 'No reason provided'}</div>
+        </div>
+      )
+    }] : []),
+    
+    // Negotiation History Section
     {
       label: "Negotiation History",
       key: "negotiationHistory",
-      render: () => (
-        negotiationHistory.length > 0 ? (
-          <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <Timeline mode="left">
-              {negotiationHistory.map((record, idx) => {
-                const isManagerQuote = record.itemType === 'record' && record.senderName === 'manager';
-                const isClientResponse = record.senderName === 'client';
-                
-                return (
-                  <Timeline.Item 
-                    key={idx}
-                    color={isManagerQuote ? 'green' : isClientResponse ? 'blue' : 'gray'}
-                    dot={<ClockCircleOutlined />}
-                  >
-                    <div>
-                      <strong style={{ color: isManagerQuote ? '#52c41a' : '#1890ff' }}>
-                        {isManagerQuote ? '💼 Manager Quote' : isClientResponse ? '👤 Client Response' : '📝 Note'}
-                      </strong>
-                      <br />
-                      <small style={{ color: '#999' }}>
-                        {new Date(record.createdAt || new Date()).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </small>
-                      <div style={{ marginTop: '8px' }}>
-                        {record.price && <div><strong>Price:</strong> ${record.price}</div>}
-                        {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
-                        {record.messageBody && <div><strong>Note:</strong> {record.messageBody}</div>}
-                        {record.state && <div><strong>Status:</strong> {record.state}</div>}
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                );
-              })}
-            </Timeline>
-          </div>
-        ) : (
-          <p style={{ color: '#999' }}>No negotiation history yet</p>
-        )
-      )
+      render: (_, data) => renderNegotiationHistory(currentNegotiationHistory, { Timeline, ClockCircleOutlined }, data)
     }
   ];
 
@@ -292,12 +371,12 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
           onClose={() => setSelectedRequest(null)}
           type="completed"
           actions={
-            !isRejected && (!selectedRequest.isPaid && !selectedRequest.isDisputed) ? (
+            !isRejected && (selectedRequest.clientPaid && !selectedRequest.isPaid && !selectedRequest.isDisputed) ? (
               <button
                 className='mark-paid-btn'
                 onClick={() => handleMarkAsPaid(selectedRequest.id)}
               >
-                Mark as Paid
+                Confirm Payment Received
               </button>
             ) : (!isRejected && selectedRequest.isDisputed && !selectedRequest.pendingRevision) ? (
               <ReviseForm request={selectedRequest} handleRevise={handleRevise} />
