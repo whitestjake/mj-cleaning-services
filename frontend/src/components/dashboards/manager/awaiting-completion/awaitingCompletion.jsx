@@ -4,43 +4,24 @@ import { useState, useEffect } from "react";
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { RequestsAPI } from "../../../../api.js";
+import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
 
 import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
 import FilterTable from '../filter-bar/filterBar.jsx';
 
 import "../managerWindow.css";
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
 const AwaitingCompletion = () => {
-  const [queued, setQueued] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [negotiationHistory, setNegotiationHistory] = useState([]);
 
   useEffect(() => {
-    const fetchQueued = async () => {
+    const fetchRequests = async () => {
       const data = await RequestsAPI.getByStatus("accepted");
-      console.log('=== Awaiting Completion Debug ===');
-      console.log('Query status:', "accepted");
-      console.log('Returned data:', data);
-      console.log('Data length:', data?.length || 0);
-      if (data && data.length > 0) {
-        console.log('First item:', data[0]);
-        console.log('First item state:', data[0].state);
-      }
-      setQueued(data);
+      setRequests(data);
     };
-    fetchQueued();
+    fetchRequests();
   }, []);
 
   const columns = [
@@ -58,9 +39,86 @@ const AwaitingCompletion = () => {
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
     { label: "Address", key: "serviceAddress" },
     { label: "Client Notes", key: "note" },
+    { 
+      label: "System Estimated Cost", 
+      key: "systemEstimate", 
+      render: (estimate) => estimate ? (
+        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#52c41a', backgroundColor: '#f6ffed', padding: '4px 12px', borderRadius: '4px', border: '1px solid #b7eb8f' }}>
+          ${estimate}
+        </span>
+      ) : (
+        <span style={{ color: '#999' }}>Not calculated</span>
+      )
+    },
+    { 
+      label: "Client Budget", 
+      key: "clientBudget", 
+      render: (budget) => budget ? (
+        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff', backgroundColor: '#e6f7ff', padding: '4px 12px', borderRadius: '4px', border: '1px solid #91d5ff' }}>
+          ${budget}
+        </span>
+      ) : (
+        <span style={{ color: '#999' }}>No limit</span>
+      )
+    },
     { label: "Scheduled Time", key: "scheduledTime", render: (date) => formatDateTime(date) },
-    { label: "Quoted Price", key: "managerQuote", render: (price) => price ? `$${price}` : '-' },
+    { 
+      label: "Quoted Price", 
+      key: "managerQuote", 
+      render: (quote, data) => {
+        // Find the latest accepted quote from negotiation history
+        const acceptedQuotes = negotiationHistory.filter(r => 
+          r.itemType === 'quote' && 
+          r.clientResponse && 
+          r.clientResponse.includes('Accepted')
+        );
+        const latestAcceptedQuote = acceptedQuotes.length > 0 ? acceptedQuotes[0] : null;
+        const finalPrice = latestAcceptedQuote ? latestAcceptedQuote.price : quote;
+        
+        return finalPrice ? (
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#52c41a' }}>
+            ${finalPrice}
+          </span>
+        ) : '-';
+      }
+    },
     { label: "Manager Note", key: "managerNote" },
+    {
+      label: "Uploaded Photos",
+      key: "photos",
+      render: (_, data) => {
+        const photos = [
+          data.photo1Path,
+          data.photo2Path,
+          data.photo3Path,
+          data.photo4Path,
+          data.photo5Path
+        ].filter(Boolean);
+
+        return photos.length > 0 ? (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+            {photos.map((photo, idx) => (
+              <img
+                key={idx}
+                src={`http://localhost:5000${photo}`}
+                alt={`Uploaded ${idx + 1}`}
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  objectFit: 'cover',
+                  cursor: 'pointer',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '4px'
+                }}
+                onClick={() => window.open(`http://localhost:5000${photo}`, '_blank')}
+              />
+            ))}
+          </div>
+        ) : (
+          <span style={{ color: '#999' }}>No photos uploaded</span>
+        );
+      }
+    },
     {
       label: "Negotiation History",
       key: "negotiationHistory",
@@ -115,43 +173,42 @@ const AwaitingCompletion = () => {
     setSelectedRequest(req);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/service-requests/${req.id}/records`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setNegotiationHistory(data.records || []);
-      }
+      const records = await fetchNegotiationRecords(req.id);
+      setNegotiationHistory(records);
     } catch (err) {
-      console.error('Failed to fetch negotiation history:', err);
+      message.error('Failed to fetch negotiation history');
     }
   };
 
   const handleComplete = async () => {
     if (!selectedRequest) return;
 
-    await RequestsAPI.move(
-      selectedRequest.id,
-      "accepted",
-      "completed",
-      { completionDate: new Date().toISOString().slice(0, 10) }
-    );
-
-    const refreshed = await RequestsAPI.getByStatus("accepted");
-    setQueued(refreshed);
-    setSelectedRequest(null);
+    try {
+      const result = await RequestsAPI.move(
+        selectedRequest.id,
+        "accepted",
+        "completed",
+        { completionDate: new Date().toISOString().slice(0, 10) }
+      );
+      
+      if (result.success) {
+        message.success('Request marked as completed!');
+        const refreshed = await RequestsAPI.getByStatus("accepted");
+        setRequests(refreshed);
+        setSelectedRequest(null);
+      } else {
+        message.error(result.message || 'Failed to mark as completed');
+      }
+    } catch (error) {
+      message.error('Failed to mark as completed');
+    }
   };
 
   return (
     <div className="manager-window-container">
       <h2>Awaiting Completion</h2>
 
-      <FilterTable columns={columns} data={queued} onRowClick={openModal} />
+      <FilterTable columns={columns} data={requests} onRowClick={openModal} />
 
       {selectedRequest && (
         <SubWindowModal

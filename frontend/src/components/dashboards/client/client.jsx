@@ -8,6 +8,7 @@ import {
     HomeOutlined 
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { RequestsAPI } from '../../../api';
 
 import RequestForm from './request-form/requestForm.jsx';
 import PriorSubmits from './prior-submissions/priorSubmits.jsx';
@@ -27,21 +28,11 @@ const ClientDashboard = () => {
 
     const fetchPendingQuotes = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/service-requests', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const pendingCount = (data.requests || []).filter(req => req.state === 'pending_response').length;
-                setPendingQuotesCount(pendingCount);
-            }
+            const data = await RequestsAPI.getByStatus();
+            const pendingCount = (data || []).filter(req => req.state === 'pending_response').length;
+            setPendingQuotesCount(pendingCount);
         } catch (err) {
-            console.error('Failed to fetch pending quotes:', err);
+            // Silently fail for pending quotes count
         }
     };
 

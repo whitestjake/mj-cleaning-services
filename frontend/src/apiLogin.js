@@ -1,12 +1,9 @@
-
-
-// Real backend API calls
-const API_BASE_URL = 'http://localhost:5000/api';
+import { API_ENDPOINTS } from './config';
 
 // Login request
 export const loginUser = async (email, password) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,15 +14,13 @@ export const loginUser = async (email, password) => {
     const data = await response.json();
     
     if (response.ok) {
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      return { success: true, role: data.role, token: data.token };
+      // Store token in sessionStorage
+      sessionStorage.setItem('token', data.token);
+      return { success: true, role: data.role, token: data.token, user: data.user };
     } else {
       return { success: false, message: data.message || 'Login failed' };
     }
   } catch (error) {
-    console.error('Login error:', error);
     return { success: false, message: 'Network error. Please check if the server is running.' };
   }
 };
@@ -33,7 +28,7 @@ export const loginUser = async (email, password) => {
 // Register request
 export const registerUser = async (userData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(API_ENDPOINTS.AUTH.REGISTER, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,7 +44,6 @@ export const registerUser = async (userData) => {
       return { success: false, message: data.message || 'Registration failed' };
     }
   } catch (error) {
-    console.error('Registration error:', error);
     return { success: false, message: 'Network error. Please check if the server is running.' };
   }
 };

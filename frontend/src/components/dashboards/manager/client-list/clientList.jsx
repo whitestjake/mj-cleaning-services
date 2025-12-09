@@ -15,11 +15,6 @@ const ClientList = () => {
   useEffect(() => {
     const fetchClients = async () => {
       const allClients = await RequestsAPI.getAllClients();
-      console.log('Client List Data:', allClients);
-      if (allClients.length > 0) {
-        console.log('First client fields:', Object.keys(allClients[0]));
-        console.log('First client data:', allClients[0]);
-      }
       setClients(allClients);
     };
     fetchClients();

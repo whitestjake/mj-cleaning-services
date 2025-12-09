@@ -41,9 +41,10 @@ CREATE TABLE IF NOT EXISTS service_requests (
     serviceDate DATETIME,
 
     clientBudget DECIMAL(10,2),
+    systemEstimate DECIMAL(10,2),    -- Auto-calculated system estimate
     addOutdoor BOOLEAN DEFAULT FALSE,
     note TEXT,
-    state VARCHAR(50),              -- pending, rejected, quoted, accepted, cancelled
+    state VARCHAR(50),              -- new, pending_response, accepted, rejected, completed
 
     -- Manager/Admin fields
     managerQuote DECIMAL(10,2),
@@ -52,10 +53,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
 
     -- Status fields
     isPaid BOOLEAN DEFAULT FALSE,
-    isDisputed BOOLEAN DEFAULT FALSE,
-    disputeNote TEXT,
-    pendingRevision BOOLEAN DEFAULT FALSE,
-    completionDate DATE,
+    completionDate DATETIME,
 
     photo1Path VARCHAR(255),
     photo2Path VARCHAR(255),
@@ -92,36 +90,4 @@ CREATE TABLE IF NOT EXISTS records (
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (requestId) REFERENCES service_requests(id)
-);
-
-
--- Create orders table if it does not exist
-CREATE TABLE IF NOT EXISTS orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    recordId INT NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (recordId) REFERENCES records(id)
-);
-
-
--- Create bills table if it does not exist
-CREATE TABLE IF NOT EXISTS bills (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    itemType VARCHAR(20),          -- bill or message
-
-    orderId INT,
-    refId INT,
-
-    amount DECIMAL(10,2),
-    state VARCHAR(50),              -- unpaid, paid, disputed
-
-    senderName VARCHAR(50),        -- client or admin
-    messageBody TEXT,
-
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (orderId) REFERENCES orders(id)
 );

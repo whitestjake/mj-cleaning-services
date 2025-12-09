@@ -17,6 +17,32 @@ const pool = mysql.createPool({
 });
 
 // ------------------- Admins -------------------
+// Admin authentication
+async function authenticateAdmin(email, password) {
+    const [rows] = await pool.query(
+        'SELECT * FROM admins WHERE email = ?', 
+        [email]
+    );
+    if (rows.length === 0) {
+        return null;
+    }
+    const admin = rows[0];
+    const isValid = await bcrypt.compare(password, admin.passwordHash);
+    if (!isValid) {
+        return null;
+    }
+    const { passwordHash, ...adminWithoutPassword } = admin;
+    return adminWithoutPassword;
+}
+
+// Add admin function 
+async function addAdmin(username, password, email = null) {
+    const hash = await bcrypt.hash(password, 10);
+    await pool.query(
+        'INSERT INTO admins (username, email, passwordHash) VALUES (?, ?, ?)',
+        [username, email, hash]
+    );
+}
 
 // ------------------- Clients -------------------
 async function addClient({ firstName, lastName, address, phoneNumber, email, cardNumber, password }) {
@@ -64,61 +90,25 @@ async function getAllClients() {
 
 // Client authentication
 async function authenticateClient(email, password) {
-
     const [rows] = await pool.query('SELECT * FROM clients WHERE email = ?', [email]);
-
     if (rows.length === 0) {
-
         return null;
     }
     const client = rows[0];
-
-
     const isValid = await bcrypt.compare(password, client.passwordHash);
-
     if (!isValid) {
         return null;
     }
-    // Remove password from returned object
     const { passwordHash, ...clientWithoutPassword } = client;
     return clientWithoutPassword;
-}
-
-// Admin authentication
-async function authenticateAdmin(email, password) {
-    // Check only email like client authentication
-    const [rows] = await pool.query(
-        'SELECT * FROM admins WHERE email = ?', 
-        [email]
-    );
-    if (rows.length === 0) {
-        return null;
-    }
-    const admin = rows[0];
-    const isValid = await bcrypt.compare(password, admin.passwordHash);
-    if (!isValid) {
-        return null;
-    }
-    // Remove password from returned object
-    const { passwordHash, ...adminWithoutPassword } = admin;
-    return adminWithoutPassword;
-}
-
-// Add admin function 
-async function addAdmin(username, password, email = null) {
-    const hash = await bcrypt.hash(password, 10);
-    await pool.query(
-        'INSERT INTO admins (username, email, passwordHash) VALUES (?, ?, ?)',
-        [username, email, hash]
-    );
 }
 
 // ------------------- Service Requests -------------------
 // Minimal: add, get one, list by client/all
 async function addServiceRequest({
-    clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, addOutdoor, note, state,
+    clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, systemEstimate, addOutdoor, note, state,
     managerQuote, scheduledTime, managerNote,
-    isPaid, isDisputed, disputeNote, pendingRevision, completionDate,
+    isPaid,
     photo1Path, photo2Path, photo3Path, photo4Path, photo5Path
 }) {
     if (!clientId || !serviceType || !numRooms || !serviceDate || !state) {
@@ -126,15 +116,15 @@ async function addServiceRequest({
     }
     const [result] = await pool.query(
         `INSERT INTO service_requests (
-            clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, addOutdoor, note, state,
+            clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, systemEstimate, addOutdoor, note, state,
             managerQuote, scheduledTime, managerNote,
-            isPaid, isDisputed, disputeNote, pendingRevision, completionDate,
+            isPaid,
             photo1Path, photo2Path, photo3Path, photo4Path, photo5Path
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-            clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, addOutdoor || false, note, state,
+            clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, systemEstimate || null, addOutdoor || false, note, state,
             managerQuote || null, scheduledTime || null, managerNote || null,
-            isPaid || false, isDisputed || false, disputeNote || null, pendingRevision || false, completionDate || null,
+            isPaid || false,
             photo1Path, photo2Path, photo3Path, photo4Path, photo5Path
         ]
     );
@@ -148,6 +138,18 @@ async function getServiceRequest(id) {
     );
     return rows[0];
 }
+// Helper function to transform photo paths
+function transformPhotoPathsToArray(row) {
+    const baseURL = process.env.BASE_URL || 'http://localhost:5000';
+    const photos = [];
+    if (row.photo1Path) photos.push(`${baseURL}${row.photo1Path}`);
+    if (row.photo2Path) photos.push(`${baseURL}${row.photo2Path}`);
+    if (row.photo3Path) photos.push(`${baseURL}${row.photo3Path}`);
+    if (row.photo4Path) photos.push(`${baseURL}${row.photo4Path}`);
+    if (row.photo5Path) photos.push(`${baseURL}${row.photo5Path}`);
+    return { ...row, photos: photos.length > 0 ? photos : undefined };
+}
+
 // Get all service requests
 async function getServiceRequests(clientId) {
     let rows;
@@ -165,18 +167,7 @@ async function getServiceRequests(clientId) {
         [rows] = await pool.query(`SELECT * FROM service_requests`);
     }
     
-    // Transform photo paths into array for frontend
-    const rowsWithPhotos = rows.map(row => {
-        const photos = [];
-        if (row.photo1Path) photos.push(`http://localhost:5000${row.photo1Path}`);
-        if (row.photo2Path) photos.push(`http://localhost:5000${row.photo2Path}`);
-        if (row.photo3Path) photos.push(`http://localhost:5000${row.photo3Path}`);
-        if (row.photo4Path) photos.push(`http://localhost:5000${row.photo4Path}`);
-        if (row.photo5Path) photos.push(`http://localhost:5000${row.photo5Path}`);
-        return { ...row, photos: photos.length > 0 ? photos : undefined };
-    });
-    
-    return rowsWithPhotos;
+    return rows.map(transformPhotoPathsToArray);
 }
 
 // Update service request status
@@ -222,39 +213,10 @@ async function getServiceRequestsWithClient() {
         ORDER BY sr.createdAt DESC
     `);
     
-    // Transform photo paths into array for frontend
-    const rowsWithPhotos = rows.map(row => {
-        const photos = [];
-        if (row.photo1Path) photos.push(`http://localhost:5000${row.photo1Path}`);
-        if (row.photo2Path) photos.push(`http://localhost:5000${row.photo2Path}`);
-        if (row.photo3Path) photos.push(`http://localhost:5000${row.photo3Path}`);
-        if (row.photo4Path) photos.push(`http://localhost:5000${row.photo4Path}`);
-        if (row.photo5Path) photos.push(`http://localhost:5000${row.photo5Path}`);
-        return { ...row, photos: photos.length > 0 ? photos : undefined };
-    });
-    
-    return rowsWithPhotos;
+    return rows.map(transformPhotoPathsToArray);
 }
 
 // ------------------- Records -------------------
-async function addRecord({
-    itemType, requestId, refId, price, businessTime, senderName, messageBody, state
-}) {
-    await pool.query(
-        `INSERT INTO records (
-            itemType, requestId, refId, price, businessTime, senderName, messageBody, state
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [itemType, requestId, refId, price, businessTime, senderName, messageBody, state]
-    );
-}
-// Get single record
-async function getRecord(id) {
-    const [rows] = await pool.query(
-        'SELECT * FROM records WHERE id = ?',
-        [id]
-    );
-    return rows[0];
-}
 // Get all records
 async function getRecords(requestId) {
     if (requestId) {
@@ -269,123 +231,37 @@ async function getRecords(requestId) {
     }
 }
 
-// Update record status
-async function updateRecordStatus(id, state) {
-    await pool.query(
-        'UPDATE records SET state = ? WHERE id = ?',
-        [state, id]
-    );
-}
-
 // Add quote record (admin creates quote)
-async function addQuote(requestId, price, businessTime, messageBody) {
+async function addQuote(requestId, price, businessTime, messageBody, senderName = 'manager') {
     const [result] = await pool.query(
         `INSERT INTO records (
             itemType, requestId, price, businessTime, senderName, messageBody, state
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ['quote', requestId, price, businessTime, 'manager', messageBody, 'pending']
+        ['quote', requestId, price, businessTime, senderName, messageBody, 'pending']
     );
     return result.insertId;
 }
 
 // Update quote record with client response
 async function updateQuoteResponse(requestId, clientResponse, responseState) {
-    await pool.query(
+    const [result] = await pool.query(
         `UPDATE records 
          SET clientResponse = ?, responseTime = NOW(), state = ?
          WHERE requestId = ? AND itemType = 'quote' AND state = 'pending'
          ORDER BY id DESC LIMIT 1`,
         [clientResponse, responseState, requestId]
     );
+    
+    return result.affectedRows;
 }
 
 // Add message record
 async function addMessage(requestId, senderName, messageBody, refId = null) {
-    const itemType = senderName === 'client' ? 'response' : 'message';
     await pool.query(
         `INSERT INTO records (
             itemType, requestId, refId, senderName, messageBody, state
         ) VALUES (?, ?, ?, ?, ?, ?)`,
-        [itemType, requestId, refId, senderName, messageBody, 'sent']
-    );
-}
-
-// ------------------- Orders -------------------
-async function addOrder({ recordId }) {
-    await pool.query(
-        `INSERT INTO orders (recordId)
-         VALUES (?)`,
-        [recordId]
-    );
-}
-// Get single order
-async function getOrder(id) {
-    const [rows] = await pool.query(
-        'SELECT * FROM orders WHERE id = ?',
-        [id]
-    );
-    return rows[0];
-}
-// Get all orders
-async function getOrders(recordId) {
-    if (recordId) {
-        const [rows] = await pool.query(
-            'SELECT * FROM orders WHERE recordId = ?',
-            [recordId]
-        );
-        return rows;
-    } else {
-        const [rows] = await pool.query('SELECT * FROM orders');
-        return rows;
-    }
-}
-
-// ------------------- Billing (bills) -------------------
-async function addBilling({
-    itemType, orderId, refId, amount, state, senderName, messageBody
-}) {
-    await pool.query(
-        `INSERT INTO bills (
-            itemType, orderId, refId, amount, state, senderName, messageBody
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [itemType, orderId, refId, amount, state, senderName, messageBody]
-    );
-}
-// Get single billing
-async function getBilling(id) {
-    const [rows] = await pool.query(
-        'SELECT * FROM bills WHERE id = ?',
-        [id]
-    );
-    return rows[0];
-}
-// Get all billing
-async function getBillings(orderId) {
-    if (orderId) {
-        const [rows] = await pool.query(
-            'SELECT * FROM bills WHERE orderId = ?',
-            [orderId]
-        );
-        return rows;
-    } else {
-        const [rows] = await pool.query('SELECT * FROM bills');
-        return rows;
-    }
-}
-
-// Update billing status
-async function updateBillingStatus(id, state) {
-    await pool.query(
-        'UPDATE bills SET state = ? WHERE id = ?',
-        [state, id]
-    );
-}
-
-// Update billing amount
-async function updateBillingAmount(id, amount) {
-    await pool.query(
-        'UPDATE bills SET amount = ? WHERE id = ?',
-        [amount, id]
+        ['message', requestId, refId, senderName, messageBody, 'sent']
     );
 }
 
@@ -407,21 +283,8 @@ module.exports = {
     updateServiceRequestStatus,
     updateServiceRequest,
     // Records
-    addRecord,
-    getRecord,
     getRecords,
-    updateRecordStatus,
     addQuote,
     updateQuoteResponse,
-    addMessage,
-    // Orders
-    addOrder,
-    getOrder,
-    getOrders,
-    // Billing
-    addBilling,
-    getBilling,
-    getBillings,
-    updateBillingStatus,
-    updateBillingAmount,
+    addMessage
 };

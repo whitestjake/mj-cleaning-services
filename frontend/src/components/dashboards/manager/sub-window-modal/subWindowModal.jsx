@@ -32,12 +32,12 @@ const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
 
         <div className="modal-content">
           {fields.map((field, idx) => (
-            <p key={idx}>
+            <div key={idx} style={{ marginBottom: '12px' }}>
               <strong>{field.label}:</strong>{" "}
               {field.render
                 ? field.render(data[field.key], data)
                 : data[field.key] ?? "-"}
-            </p>
+            </div>
           ))}
         </div>
 

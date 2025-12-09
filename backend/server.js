@@ -101,6 +101,23 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend server is running!' });
 });
 
+// Get current user profile
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    const client = await getClient(req.user.id);
+    
+    if (!client) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    // Remove sensitive data
+    delete client.password;
+    res.json({ success: true, user: client });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get user profile' });
+  }
+});
+
 // Register endpoint
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -207,11 +224,7 @@ app.post('/api/auth/login', async (req, res) => {
 // Service request endpoints
 app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), async (req, res) => {
   try {
-    console.log('Create service request - User from token:', req.user);
-    console.log('User role:', req.user.role);
-    
     if (req.user.role !== 'client') {
-      console.log('Role check failed. Expected: client, Got:', req.user.role);
       return res.status(403).json({ error: 'Only clients can create service requests' });
     }
 
@@ -221,6 +234,8 @@ app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), 
       numRooms,
       serviceDate,
       clientBudget,
+      systemEstimate,
+      addOutdoor,
       note
     } = req.body;
 
@@ -239,6 +254,8 @@ app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), 
       numRooms: parseInt(numRooms) || 0,
       serviceDate: new Date(serviceDate),
       clientBudget: clientBudget ? parseFloat(clientBudget) : null,
+      systemEstimate: systemEstimate ? parseFloat(systemEstimate) : null,
+      addOutdoor: addOutdoor === 'true' || addOutdoor === true,
       note,
       state: 'new',
       ...photoPaths
@@ -272,15 +289,9 @@ app.get('/api/service-requests', authenticateToken, async (req, res) => {
       const { status } = req.query;
       let allRequests = await getServiceRequestsWithClient();
       
-      console.log('=== Manager Request Filter Debug ===');
-      console.log('Requested status:', status);
-      console.log('Total requests in DB:', allRequests.length);
-      console.log('All states:', allRequests.map(r => r.state));
-      
       // Filter by status if provided
       if (status) {
         requests = allRequests.filter(req => req.state === status);
-        console.log(`Filtered to status "${status}":`, requests.length);
       } else {
         requests = allRequests;
       }
@@ -483,11 +494,12 @@ app.get('/api/service-requests/:id/records', authenticateToken, async (req, res)
 app.post('/api/service-requests/:id/records', authenticateToken, async (req, res) => {
   try {
     const requestId = req.params.id;
-    const { itemType, price, businessTime, messageBody } = req.body;
-    const senderName = req.user.role;
+    const { itemType, price, businessTime, messageBody, senderName: requestedSenderName } = req.body;
+    // Use the senderName from request body if provided, otherwise use user's role from token
+    const senderName = requestedSenderName || req.user.role;
     
     if (itemType === 'quote') {
-      await addQuote(requestId, price, businessTime, messageBody);
+      await addQuote(requestId, price, businessTime, messageBody, senderName);
     } else if (itemType === 'response') {
       await addMessage(requestId, senderName, messageBody);
     } else {
@@ -510,7 +522,15 @@ app.put('/api/service-requests/:id/quote-response', authenticateToken, async (re
     const requestId = req.params.id;
     const { clientResponse, state } = req.body;
     
-    await updateQuoteResponse(requestId, clientResponse, state);
+    const affectedRows = await updateQuoteResponse(requestId, clientResponse, state);
+    
+    if (affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No pending quote found to update' 
+      });
+    }
+    
     res.json({ success: true, message: 'Quote response updated successfully' });
   } catch (error) {
     console.error('Update quote response error:', error);
@@ -561,10 +581,6 @@ app.use((error, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('Make sure to:');
-  console.log('1. Set up MySQL database');
-  console.log('2. Configure database.env file');
-  console.log('3. Run database.sql to create tables');
 });
 
 

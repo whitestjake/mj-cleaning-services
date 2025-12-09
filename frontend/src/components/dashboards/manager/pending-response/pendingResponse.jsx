@@ -4,25 +4,14 @@ import { useState, useEffect } from "react";
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { RequestsAPI } from "../../../../api.js";
+import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
 
 import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
 import FilterTable from '../filter-bar/filterBar.jsx';
 
 import "../managerWindow.css";
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const PendingResponses = () => {
+const PendingResponse = () => {
   const [pending, setPending] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [negotiationHistory, setNegotiationHistory] = useState([]);
@@ -30,8 +19,6 @@ const PendingResponses = () => {
   useEffect(() => {
     const fetchPending = async () => {
       const data = await RequestsAPI.getByStatus("pending_response");
-      console.log('Pending Response Data:', data);
-      if (data.length > 0) console.log('First item:', data[0]);
       setPending(data);
     };
     fetchPending();
@@ -41,50 +28,10 @@ const PendingResponses = () => {
     setSelectedRequest(req);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/service-requests/${req.id}/records`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setNegotiationHistory(data.records || []);
-      }
+      const records = await fetchNegotiationRecords(req.id);
+      setNegotiationHistory(records);
     } catch (err) {
-      console.error('Failed to fetch negotiation history:', err);
-    }
-  };
-
-  const handleAcceptQuote = async () => {
-    if (!selectedRequest) return;
-    
-    try {
-      await RequestsAPI.move(selectedRequest.id, "pending_response", "accepted");
-      setSelectedRequest(null);
-      // Refresh the list
-      const refreshed = await RequestsAPI.getByStatus("pending_response");
-      setPending(refreshed);
-    } catch (error) {
-      console.error('Error accepting quote:', error);
-      message.error('Failed to accept quote');
-    }
-  };
-
-  const handleRejectQuote = async () => {
-    if (!selectedRequest) return;
-    
-    try {
-      await RequestsAPI.move(selectedRequest.id, "pending_response", "rejected");
-      setSelectedRequest(null);
-      // Refresh the list
-      const refreshed = await RequestsAPI.getByStatus("pending_response");
-      setPending(refreshed);
-    } catch (error) {
-      console.error('Error rejecting quote:', error);
-      message.error('Failed to reject quote');
+      message.error('Failed to fetch negotiation history');
     }
   };
 
@@ -102,9 +49,86 @@ const PendingResponses = () => {
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
     { label: "Address", key: "serviceAddress" },
     { label: "Client Notes", key: "note" },
-    { label: "Manager Quote", key: "managerQuote", render: (quote) => quote ? `$${quote}` : '-' },
+    { 
+      label: "System Estimated Cost", 
+      key: "systemEstimate", 
+      render: (estimate) => estimate ? (
+        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#52c41a', backgroundColor: '#f6ffed', padding: '4px 12px', borderRadius: '4px', border: '1px solid #b7eb8f' }}>
+          ${estimate}
+        </span>
+      ) : (
+        <span style={{ color: '#999' }}>Not calculated</span>
+      )
+    },
+    { 
+      label: "Client Budget", 
+      key: "clientBudget", 
+      render: (budget) => budget ? (
+        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff', backgroundColor: '#e6f7ff', padding: '4px 12px', borderRadius: '4px', border: '1px solid #91d5ff' }}>
+          ${budget}
+        </span>
+      ) : (
+        <span style={{ color: '#999' }}>No limit</span>
+      )
+    },
+    { 
+      label: "Manager Quote", 
+      key: "managerQuote", 
+      render: (quote, data) => {
+        // Find the latest accepted quote from negotiation history
+        const acceptedQuotes = negotiationHistory.filter(r => 
+          r.itemType === 'quote' && 
+          r.clientResponse && 
+          r.clientResponse.includes('Accepted')
+        );
+        const latestAcceptedQuote = acceptedQuotes.length > 0 ? acceptedQuotes[0] : null;
+        const finalPrice = latestAcceptedQuote ? latestAcceptedQuote.price : quote;
+        
+        return finalPrice ? (
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#52c41a' }}>
+            ${finalPrice}
+          </span>
+        ) : '-';
+      }
+    },
     { label: "Scheduled Time", key: "scheduledTime", render: (date) => formatDateTime(date) },
     { label: "Manager Note", key: "managerNote" },
+    {
+      label: "Uploaded Photos",
+      key: "photos",
+      render: (_, data) => {
+        const photos = [
+          data.photo1Path,
+          data.photo2Path,
+          data.photo3Path,
+          data.photo4Path,
+          data.photo5Path
+        ].filter(Boolean);
+
+        return photos.length > 0 ? (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+            {photos.map((photo, idx) => (
+              <img
+                key={idx}
+                src={`http://localhost:5000${photo}`}
+                alt={`Uploaded ${idx + 1}`}
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  objectFit: 'cover',
+                  cursor: 'pointer',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '4px'
+                }}
+                onClick={() => window.open(`http://localhost:5000${photo}`, '_blank')}
+              />
+            ))}
+          </div>
+        ) : (
+          <span style={{ color: '#999' }}>No photos uploaded</span>
+        );
+      }
+    },
     {
       label: "Negotiation History",
       key: "negotiationHistory",
@@ -168,43 +192,14 @@ const PendingResponses = () => {
           fields={modalFields}
           onClose={() => setSelectedRequest(null)}
           type="pending"
-          actions={
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button 
-                onClick={handleAcceptQuote}
-                style={{ 
-                  backgroundColor: '#52c41a', 
-                  color: 'white', 
-                  border: 'none', 
-                  padding: '8px 16px', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Accept Quote
-              </button>
-              <button 
-                onClick={handleRejectQuote}
-                style={{ 
-                  backgroundColor: '#ff4d4f', 
-                  color: 'white', 
-                  border: 'none', 
-                  padding: '8px 16px', 
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Reject Quote
-              </button>
-            </div>
-          }
+          actions={null}
         />
       )}
     </div>
   );
 };
 
-export default PendingResponses;
+export default PendingResponse;
 
 
 

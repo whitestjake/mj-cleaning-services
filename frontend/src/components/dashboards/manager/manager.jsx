@@ -2,7 +2,7 @@
 
 
 import { useState, useEffect } from "react";
-import { Layout, Menu, Typography, Button, Space, Badge } from 'antd';
+import { Layout, Menu, Typography, Button, Space, message } from 'antd';
 import { 
     DashboardOutlined, 
     FileTextOutlined, 
@@ -10,7 +10,8 @@ import {
     CheckCircleOutlined,
     UserOutlined,
     LogoutOutlined,
-    HomeOutlined
+    HomeOutlined,
+    StopOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../../context/AuthProvider.jsx';
 import { useNavigate } from 'react-router-dom';
@@ -35,33 +36,28 @@ const ManagerDashboard = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [queuedRequests, setQueuedRequests] = useState([]);
   const [completedRequests, setCompletedRequests] = useState([]);
+  const [rejectedRequests, setRejectedRequests] = useState([]);
   const [clients, setClients] = useState([]);
 
   const fetchData = async () => {
     try {
-      const [newData, pendingData, queuedData, completedData, clientsData] = await Promise.all([
+      const [newData, pendingData, queuedData, completedData, rejectedData, clientsData] = await Promise.all([
         RequestsAPI.getByStatus("new"),
         RequestsAPI.getByStatus("pending_response"),
         RequestsAPI.getByStatus("awaiting_completion"),
         RequestsAPI.getByStatus("completed"),
+        RequestsAPI.getByStatus("rejected"),
         RequestsAPI.getAllClients(),
       ]);
-
-      console.log('Manager Dashboard Data:', {
-        newData,
-        pendingData,
-        queuedData,
-        completedData,
-        clientsData
-      });
 
       setNewRequests(newData);
       setPendingRequests(pendingData);
       setQueuedRequests(queuedData);
       setCompletedRequests(completedData);
+      setRejectedRequests(rejectedData);
       setClients(clientsData);
     } catch (err) {
-      console.error("Failed to fetch data:", err);
+      message.error('Failed to fetch data');
     }
   };
 
@@ -88,47 +84,32 @@ const ManagerDashboard = () => {
     {
       key: 'new',
       icon: <FileTextOutlined />,
-      label: (
-        <Badge count={newRequests.length} size="small">
-          <span style={{ marginRight: 8 }}>New Requests</span>
-        </Badge>
-      ),
+      label: 'New Requests',
     },
     {
       key: 'pending',
       icon: <ClockCircleOutlined />,
-      label: (
-        <Badge count={pendingRequests.length} size="small">
-          <span style={{ marginRight: 8 }}>Pending Response</span>
-        </Badge>
-      ),
+      label: 'Pending Response',
     },
     {
       key: 'queued',
       icon: <DashboardOutlined />,
-      label: (
-        <Badge count={queuedRequests.length} size="small">
-          <span style={{ marginRight: 8 }}>In Progress</span>
-        </Badge>
-      ),
+      label: 'In Progress',
     },
     {
       key: 'accepted',
       icon: <CheckCircleOutlined />,
-      label: (
-        <Badge count={completedRequests.length} size="small">
-          <span style={{ marginRight: 8 }}>Completed</span>
-        </Badge>
-      ),
+      label: 'Completed',
+    },
+    {
+      key: 'rejected',
+      icon: <StopOutlined />,
+      label: 'Cancelled/Rejected',
     },
     {
       key: 'clients',
       icon: <UserOutlined />,
-      label: (
-        <Badge count={clients.length} size="small">
-          <span style={{ marginRight: 8 }}>Clients</span>
-        </Badge>
-      ),
+      label: 'Clients',
     },
   ];
 
@@ -253,6 +234,14 @@ const ManagerDashboard = () => {
             <AcceptedRequests
               data={completedRequests}
               refresh={fetchData}
+            />
+          )}
+          {activeTab === "rejected" && (
+            <AcceptedRequests
+              data={rejectedRequests}
+              refresh={fetchData}
+              title="Cancelled/Rejected Requests"
+              isRejected={true}
             />
           )}
           {activeTab === "clients" && (

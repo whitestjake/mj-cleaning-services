@@ -37,6 +37,9 @@
   padding: 4px 6px;
   box-sizing: border-box;
   border: 1px solid #dee2e6;
+  background-color: #fff;
+  color: #333;
+  font-size: 14px;
 }
 
 /* Number filters stacked vertically */
@@ -51,6 +54,9 @@
   padding: 4px 6px;
   box-sizing: border-box;
   border: 1px solid #dee2e6;
+  background-color: #fff;
+  color: #333;
+  font-size: 14px;
 }
 
 /* Date filters stacked vertically */
@@ -64,6 +70,25 @@
   margin-bottom: 4px;
   padding: 4px 6px;
   box-sizing: border-box;
+  background-color: #fff;
+  color: #333 !important;
+  font-size: 14px;
+}
+
+.date-range-filter input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+  cursor: pointer;
+}
+
+/* Ensure all input types in filter row have proper text color */
+.filter-row input {
+  color: #333 !important;
+  background-color: #fff;
+}
+
+.filter-row input::placeholder {
+  color: #999;
+  opacity: 1;
 }
 
 /* Remove bottom margin for last input in each filter */

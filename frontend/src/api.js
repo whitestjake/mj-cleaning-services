@@ -1,8 +1,7 @@
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { API_ENDPOINTS } from './config';
 
 const getAuthToken = () => {
-  return localStorage.getItem('token');
+  return sessionStorage.getItem('token');
 };
 
 const authenticatedFetch = async (url, options = {}) => {
@@ -17,26 +16,40 @@ const authenticatedFetch = async (url, options = {}) => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${API_ENDPOINTS.BASE}${url}`, {
       ...options,
       headers,
     });
 
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       window.location.href = '/login';
       return null;
     }
 
     return response;
   } catch (error) {
-    console.error('API request failed:', error);
     throw new Error('Network error. Please check if the server is running.');
   }
 };
 
 export const RequestsAPI = {
+  getCurrentUser: async () => {
+    try {
+      const response = await authenticatedFetch('/me');
+      if (!response) return null;
+      
+      const data = await response.json();
+      if (data.success) {
+        return data.user;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  },
+
   getByStatus: async (status) => {
     try {
       const response = await authenticatedFetch(`/service-requests?status=${status}`);
@@ -48,7 +61,6 @@ export const RequestsAPI = {
       }
       return [];
     } catch (error) {
-      console.error('Failed to fetch requests by status:', error);
       return [];
     }
   },
@@ -64,7 +76,6 @@ export const RequestsAPI = {
       }
       return [];
     } catch (error) {
-      console.error('Failed to fetch clients:', error);
       return [];
     }
   },
@@ -81,7 +92,32 @@ export const RequestsAPI = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Failed to create request:', error);
+      return { success: false, message: error.message };
+    }
+  },
+
+  // Create request with file upload (FormData)
+  createWithFiles: async (formData) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_ENDPOINTS.BASE}/service-requests`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData, // FormData - don't set Content-Type, browser will set it with boundary
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return { success: false, message: 'Unauthorized' };
+      }
+
+      const data = await response.json();
+      return { success: response.ok, ...data };
+    } catch (error) {
       return { success: false, message: error.message };
     }
   },
@@ -98,7 +134,6 @@ export const RequestsAPI = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Failed to update request status:', error);
       return { success: false, message: error.message };
     }
   },
@@ -115,21 +150,8 @@ export const RequestsAPI = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Failed to update request:', error);
       return { success: false, message: error.message };
     }
-  },
-
-  sendQuote: async (id, updates) => {
-    return await RequestsAPI.update(id, { ...updates, state: 'pending_response' });
-  },
-
-  acceptQuote: async (id) => {
-    return await RequestsAPI.updateStatus(id, 'accepted');
-  },
-
-  rejectQuote: async (id) => {
-    return await RequestsAPI.updateStatus(id, 'rejected');
   },
 
   completeRequest: async (id) => {
@@ -140,31 +162,60 @@ export const RequestsAPI = {
     return await RequestsAPI.update(id, { isPaid: true });
   },
 
-  disputeBill: async (id, note) => {
-    return await RequestsAPI.update(id, { disputed: true, disputeNote: note });
-  },
-
-  reviseBill: async (id, updates) => {
-    return await RequestsAPI.update(id, { ...updates, pendingRevision: true });
-  },
-
-  sendRenegotiation: async (id, adjustments) => {
-    return await RequestsAPI.update(id, { 
-      isRenegotiation: true,
-      clientAdjustment: adjustments,
-      state: 'new'
-    });
-  },
-
   move: async (id, fromState, toState, updates = {}) => {
     return await RequestsAPI.update(id, { ...updates, state: toState });
   },
 
-  reviseDisputedRequest: async (id, updates) => {
-    return await RequestsAPI.update(id, { ...updates, pendingRevision: true, isDisputed: false });
+  // Add negotiation record (quote or message)
+  addRecord: async (requestId, recordData) => {
+    try {
+      const response = await authenticatedFetch(`/service-requests/${requestId}/records`, {
+        method: 'POST',
+        body: JSON.stringify(recordData),
+      });
+
+      if (!response) return { success: false };
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  // Get negotiation records for a request
+  getRecords: async (requestId) => {
+    try {
+      const response = await authenticatedFetch(`/service-requests/${requestId}/records`);
+      if (!response) return [];
+      
+      const data = await response.json();
+      if (data.success) {
+        return data.records || [];
+      }
+      return [];
+    } catch (error) {
+      return [];
+    }
+  },
+
+  // Update quote response (client acceptance/rejection)
+  updateQuoteResponse: async (requestId, responseData) => {
+    try {
+      const response = await authenticatedFetch(`/service-requests/${requestId}/quote-response`, {
+        method: 'PUT',
+        body: JSON.stringify(responseData),
+      });
+
+      if (!response) return { success: false };
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
   }
 };
-
 
 
 

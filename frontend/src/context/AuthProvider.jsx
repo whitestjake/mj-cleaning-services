@@ -1,6 +1,6 @@
 
 
-import { createContext, useState, useContext } from "react";
+import { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, registerUser } from "../apiLogin.js";
 
@@ -8,13 +8,32 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null); // { email, role, token }
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Restore user from sessionStorage on mount
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+        sessionStorage.removeItem('user');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   const login = async (email, password) => {
     const response = await loginUser(email, password);
 
     if (response.success) {
-      setUser({ email, role: response.role, token: response.token });
+      const userData = response.user || { email, role: response.role, token: response.token };
+      setUser(userData);
+      // Save to sessionStorage (each tab is independent)
+      sessionStorage.setItem('user', JSON.stringify(userData));
 
       // redirect based on role
       if (response.role === "client") navigate("/client-dashboard");
@@ -40,10 +59,16 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
+    sessionStorage.removeItem('user');
     navigate("/login");
   };
 
   const isLoggedIn = !!user;
+
+  // Don't render children until we've checked localStorage
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout }}>

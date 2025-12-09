@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Form, Input, Button, Select, DatePicker, Checkbox, Upload, Alert, Row, Col, Card, Typography } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { Form, Input, Button, Select, DatePicker, Checkbox, Upload, Alert, Row, Col, Card, Typography, Radio } from 'antd';
+import { UploadOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { RequestsAPI } from '../../../../api';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -13,6 +14,8 @@ const RequestForm = () => {
     const [messageType, setMessageType] = useState('');
     const [photos, setPhotos] = useState([]);
     const [estimatedCost, setEstimatedCost] = useState(0);
+    const [savedAddress, setSavedAddress] = useState('');
+    const [useNewAddress, setUseNewAddress] = useState(false);
 
     const services = ['Basic', 'Deep Clean', 'Move Out'];
     
@@ -24,6 +27,37 @@ const RequestForm = () => {
     };
     
     const outdoorCost = 40; // per hour
+
+    // Fetch user's saved address
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const user = await RequestsAPI.getCurrentUser();
+                
+                if (user && user.address) {
+                    setSavedAddress(user.address);
+                    // Set saved address as default
+                    form.setFieldsValue({ serviceAddress: user.address });
+                } else {
+                    setUseNewAddress(true);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                setUseNewAddress(true);
+            }
+        };
+        fetchUserData();
+    }, [form]);
+
+    const handleAddressTypeChange = (e) => {
+        const isNew = e.target.value === 'new';
+        setUseNewAddress(isNew);
+        if (!isNew && savedAddress) {
+            form.setFieldsValue({ serviceAddress: savedAddress });
+        } else {
+            form.setFieldsValue({ serviceAddress: '' });
+        }
+    };
 
     // Calculate estimated cost when form values change
     const calculateEstimate = () => {
@@ -70,35 +104,31 @@ const RequestForm = () => {
                     formData.append(key, value || '');
                 }
             });
+            
+            // Add system calculated estimated cost
+            formData.append('systemEstimate', estimatedCost);
 
             photos.forEach((file) => {
                 formData.append('photos', file.originFileObj || file);
             });
 
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/service-requests', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            const data = await response.json();
+            const result = await RequestsAPI.createWithFiles(formData);
             
-            if (response.ok) {
+            if (result.success) {
                 setMessage('Request submitted successfully!');
                 setMessageType('success');
                 form.resetFields();
                 setPhotos([]);
                 setEstimatedCost(0);
             } else {
-                setMessage(data.error || 'Failed to submit request');
+                setMessage(result.message || result.error || 'Failed to submit request');
                 setMessageType('error');
+                console.error('Submit error:', result);
             }
         } catch (error) {
-            setMessage('Network error. Please try again.');
+            setMessage(`Network error: ${error.message}`);
             setMessageType('error');
+            console.error('Submit exception:', error);
         } finally {
             setSubmitting(false);
         }
@@ -108,7 +138,7 @@ const RequestForm = () => {
         <div>
             {message && (
                 <Alert 
-                    message={message} 
+                    title={message} 
                     type={messageType} 
                     closable
                     style={{ marginBottom: '16px' }}
@@ -162,36 +192,31 @@ const RequestForm = () => {
                         </Form.Item>
                     </Col>
 
-                    <Col xs={24} sm={12}>
+                    <Col xs={24}>
+                        {savedAddress && (
+                            <Form.Item label="Address Option" style={{ marginBottom: '8px' }}>
+                                <Radio.Group onChange={handleAddressTypeChange} value={useNewAddress ? 'new' : 'saved'} size="small">
+                                    <Radio value="saved">
+                                        <EnvironmentOutlined /> Use saved address
+                                    </Radio>
+                                    <Radio value="new">Enter new address</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                        )}
+                        
                         <Form.Item
                             name="serviceAddress"
-                            label="Address"
-                            rules={[{ required: true }]}
+                            label={!savedAddress || useNewAddress ? "Address" : ""}
+                            rules={[{ required: true, message: 'Please enter service address' }]}
                             style={{ marginBottom: '12px' }}
                         >
-                            <TextArea rows={1} placeholder="Service address" size="small" />
-                        </Form.Item>
-                    </Col>
-
-                    <Col xs={24} sm={12}>
-                        <Form.Item name="clientBudget" label="Budget" style={{ marginBottom: '12px' }}>
-                            <Input placeholder="Optional" size="small" />
-                        </Form.Item>
-                    </Col>
-
-                    <Col xs={24}>
-                        <Form.Item 
-                            name="note" 
-                            label="Additional Notes / Special Requirements" 
-                            style={{ marginBottom: '12px' }}
-                        >
-                            <TextArea 
-                                rows={3} 
-                                placeholder="Any special instructions or requirements for the cleaning service..." 
-                                size="small"
-                                maxLength={500}
-                                showCount
-                            />
+                            {!useNewAddress && savedAddress ? (
+                                <Card size="small" style={{ backgroundColor: '#e6f7ff', border: '1px solid #91d5ff' }}>
+                                    <Text><EnvironmentOutlined style={{ marginRight: '8px', color: '#1890ff' }} />{savedAddress}</Text>
+                                </Card>
+                            ) : (
+                                <TextArea rows={2} placeholder="Enter service address" size="small" />
+                            )}
                         </Form.Item>
                     </Col>
 
@@ -231,6 +256,23 @@ const RequestForm = () => {
                     </Card>
                 )}
 
+                <Form.Item 
+                    name="note" 
+                    label="Additional Notes / Special Requirements" 
+                    style={{ marginBottom: '12px' }}
+                >
+                    <TextArea 
+                        rows={3} 
+                        placeholder="Any special instructions or requirements for the cleaning service..." 
+                        size="small"
+                        maxLength={500}
+                        showCount
+                    />
+                </Form.Item>
+
+                <Form.Item name="clientBudget" label="Budget (Optional)" style={{ marginBottom: '12px' }}>
+                    <Input placeholder="Enter your budget if you have one" size="small" />
+                </Form.Item>
 
                 <Button 
                     type="primary" 
