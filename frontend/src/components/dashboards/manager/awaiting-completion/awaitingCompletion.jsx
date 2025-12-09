@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { RequestsAPI } from "../../../../api.js";
-import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
+import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
 import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
 import FilterTable from '../filter-bar/filterBar.jsx';
@@ -38,7 +38,6 @@ const AwaitingCompletion = () => {
     { label: "Number of Rooms", key: "numRooms" },
     { label: "Outdoor Service", key: "addOutdoor", render: (val) => (val ? "Yes" : "No") },
     { label: "Address", key: "serviceAddress" },
-    { label: "Client Notes", key: "note" },
     { 
       label: "System Estimated Cost", 
       key: "systemEstimate", 
@@ -82,7 +81,6 @@ const AwaitingCompletion = () => {
         ) : '-';
       }
     },
-    { label: "Manager Note", key: "managerNote" },
     {
       label: "Uploaded Photos",
       key: "photos",
@@ -122,50 +120,7 @@ const AwaitingCompletion = () => {
     {
       label: "Negotiation History",
       key: "negotiationHistory",
-      render: () => (
-        negotiationHistory.length > 0 ? (
-          <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <Timeline mode="left">
-              {negotiationHistory.map((record, idx) => {
-                const isManagerQuote = record.itemType === 'record' && record.senderName === 'manager';
-                const isClientResponse = record.senderName === 'client';
-                
-                return (
-                  <Timeline.Item 
-                    key={idx}
-                    color={isManagerQuote ? 'green' : isClientResponse ? 'blue' : 'gray'}
-                    dot={<ClockCircleOutlined />}
-                  >
-                    <div>
-                      <strong style={{ color: isManagerQuote ? '#52c41a' : '#1890ff' }}>
-                        {isManagerQuote ? '💼 Manager Quote' : isClientResponse ? '👤 Client Response' : '📝 Note'}
-                      </strong>
-                      <br />
-                      <small style={{ color: '#999' }}>
-                        {new Date(record.createdAt || new Date()).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </small>
-                      <div style={{ marginTop: '8px' }}>
-                        {record.price && <div><strong>Price:</strong> ${record.price}</div>}
-                        {record.businessTime && <div><strong>Time:</strong> {new Date(record.businessTime).toLocaleString()}</div>}
-                        {record.messageBody && <div><strong>Note:</strong> {record.messageBody}</div>}
-                        {record.state && <div><strong>Status:</strong> {record.state}</div>}
-                      </div>
-                    </div>
-                  </Timeline.Item>
-                );
-              })}
-            </Timeline>
-          </div>
-        ) : (
-          <p style={{ color: '#999' }}>No negotiation history yet</p>
-        )
-      )
+      render: (_, data) => renderNegotiationHistory(negotiationHistory, { Timeline, ClockCircleOutlined }, data)
     }
   ];
 
@@ -192,6 +147,13 @@ const AwaitingCompletion = () => {
       );
       
       if (result.success) {
+        // Add record for service completion
+        await RequestsAPI.addRecord(selectedRequest.id, {
+          itemType: 'message',
+          messageBody: 'Service completed. Bill generated.',
+          senderName: 'manager'
+        });
+        
         message.success('Request marked as completed!');
         const refreshed = await RequestsAPI.getByStatus("accepted");
         setRequests(refreshed);

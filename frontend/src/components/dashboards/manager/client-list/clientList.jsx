@@ -21,6 +21,7 @@ const ClientList = () => {
   }, []);
 
   const columns = [
+    { key: "clientID", label: "Client ID", filterType: "text" },
     { key: "clientName", label: "Client Name", filterType: "text" },
     { key: "phone", label: "Phone", filterType: "text" },
     { key: "completedRequests", label: "Completed", filterType: "number" },
@@ -29,6 +30,7 @@ const ClientList = () => {
 
   // Fields for the modal display
   const modalFields = [
+    { key: "clientID", label: "Client ID" },
     { key: "clientName", label: "Client Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },

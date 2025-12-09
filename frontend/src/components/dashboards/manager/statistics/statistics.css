@@ -1,0 +1,12 @@
+.statistics-container {
+    padding: 20px;
+}
+
+.statistics-container h1 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.ant-table-wrapper {
+    margin-top: 16px;
+}

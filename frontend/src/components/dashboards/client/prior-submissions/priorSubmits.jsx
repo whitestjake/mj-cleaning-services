@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Table, Tag, Spin, Alert, Button, Space, Modal, Typography, Descriptions, Card, Input, Radio, InputNumber } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, DollarOutlined } from '@ant-design/icons';
+import { useState, useEffect, useRef } from 'react';
+import { Table, Tag, Spin, Alert, Button, Space, Modal, Typography, Descriptions, Card, Input, Radio, InputNumber, message } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, DollarOutlined, CreditCardOutlined, ReloadOutlined } from '@ant-design/icons';
 import { RequestsAPI } from '../../../../api';
 
 const { Text } = Typography;
@@ -9,30 +9,46 @@ const { TextArea } = Input;
 const PriorSubmits = ({ onUpdate }) => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [clientNote, setClientNote] = useState('');
     const [counterOffer, setCounterOffer] = useState('');
     const [responseType, setResponseType] = useState('accept'); // 'accept', 'reject', 'counter'
+    const [disputeNote, setDisputeNote] = useState('');
+    const [billModalVisible, setBillModalVisible] = useState(false);
+    const intervalRef = useRef(null);
 
     useEffect(() => {
         fetchRequests();
+        
+        // Poll for updates every 10 seconds
+        intervalRef.current = setInterval(() => {
+            fetchRequests(true); // Silent refresh
+        }, 10000);
+        
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
     }, []);
 
-    const fetchRequests = async () => {
+    const fetchRequests = async (silent = false) => {
+        if (!silent) {
+            setRefreshing(true);
+        }
         try {
             const data = await RequestsAPI.getByStatus();
-            console.log('Fetched requests:', data);
-            // Log each request's state and managerQuote
-            data?.forEach((req, idx) => {
-                console.log(`Request ${idx}: id=${req.id}, state="${req.state}", managerQuote=${req.managerQuote}`);
-            });
             setRequests(data || []);
         } catch (err) {
             setError('Network error');
         } finally {
             setLoading(false);
+            if (!silent) {
+                setRefreshing(false);
+            }
         }
     };
 
@@ -48,13 +64,23 @@ const PriorSubmits = ({ onUpdate }) => {
         });
     };
 
-    const getStatusTag = (status) => {
+    const getStatusTag = (status, record) => {
+        // Special handling for completed but unpaid bills
+        if (status === 'completed') {
+            if (record.isPaid) {
+                return <Tag color="green">Paid</Tag>;
+            } else if (record.isDisputed) {
+                return <Tag color="orange">Bill Disputed</Tag>;
+            } else {
+                return <Tag color="red">Payment Due</Tag>;
+            }
+        }
+
         const statusConfig = {
             'new': { color: 'blue', text: 'Submitted' },
             'pending_response': { color: 'orange', text: 'Quote Received - Action Required' },
             'rejected': { color: 'default', text: 'Cancelled' },
-            'accepted': { color: 'purple', text: 'In Progress' },
-            'completed': { color: 'cyan', text: 'Completed' },
+            'accepted': { color: 'green', text: 'Accepted - Service Scheduled' },
             'cancelled': { color: 'default', text: 'Cancelled' }
         };
         const config = statusConfig[status] || { color: 'default', text: status };
@@ -170,6 +196,78 @@ const PriorSubmits = ({ onUpdate }) => {
         }
     };
 
+    const handlePayBill = async (request) => {
+        try {
+            const result = await RequestsAPI.payBill(request.id);
+            
+            if (result.success) {
+                // Add record for payment
+                await RequestsAPI.addRecord(request.id, {
+                    itemType: 'message',
+                    messageBody: `Client completed payment of $${request.managerQuote}`,
+                    senderName: 'client'
+                });
+                
+                message.success('Payment successful! Receipt sent to your email.');
+                
+                // Close modal first
+                setBillModalVisible(false);
+                setSelectedRequest(null);
+                
+                // Then refresh data
+                await fetchRequests();
+                
+                if (onUpdate) onUpdate();
+            } else {
+                message.error('Payment failed. Please try again.');
+            }
+        } catch (err) {
+            console.error('handlePayBill error:', err);
+            message.error('Network error: ' + err.message);
+        }
+    };
+
+    const handleDisputeBill = async (request) => {
+        if (!disputeNote.trim()) {
+            message.warning('Please provide a reason for disputing the bill.');
+            return;
+        }
+
+        try {
+            const result = await RequestsAPI.disputeBill(request.id, disputeNote);
+            
+            if (result.success) {
+                message.info('Dispute submitted. Manager will review and respond.');
+                
+                // Close modal first
+                setBillModalVisible(false);
+                setSelectedRequest(null);
+                setDisputeNote('');
+                
+                // Then refresh data
+                await fetchRequests();
+                
+                if (onUpdate) onUpdate();
+            } else {
+                message.error('Failed to submit dispute.');
+            }
+        } catch (err) {
+            message.error('Network error: ' + err.message);
+        }
+    };
+
+    const showBillModal = async (record) => {
+        // Fetch latest data to get current payment status
+        try {
+            const freshData = await RequestsAPI.getById(record.id);
+            setSelectedRequest(freshData);
+        } catch (err) {
+            setSelectedRequest(record);
+        }
+        setBillModalVisible(true);
+        setDisputeNote('');
+    };
+
     const showQuoteDetails = async (record) => {
         setSelectedRequest(record);
         setModalVisible(true);
@@ -224,7 +322,7 @@ const PriorSubmits = ({ onUpdate }) => {
             title: 'Status',
             dataIndex: 'state',
             key: 'status',
-            render: getStatusTag,
+            render: (state, record) => getStatusTag(state, record),
             width: '18%'
         },
         {
@@ -245,7 +343,7 @@ const PriorSubmits = ({ onUpdate }) => {
             title: 'Action',
             key: 'action',
             render: (_, record) => {
-                // Show button only for pending_response status with a quote
+                // Show "Review Quote" for pending_response with a quote
                 if (record.state === 'pending_response' && record.managerQuote) {
                     return (
                         <Button 
@@ -260,6 +358,22 @@ const PriorSubmits = ({ onUpdate }) => {
                         </Button>
                     );
                 }
+                // Show "View Bill" for completed but unpaid
+                if (record.state === 'completed' && !record.isPaid) {
+                    return (
+                        <Button 
+                            type="primary"
+                            size="small"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                showBillModal(record);
+                            }}
+                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                        >
+                            View Bill
+                        </Button>
+                    );
+                }
                 return '-';
             },
             width: '13%'
@@ -271,6 +385,20 @@ const PriorSubmits = ({ onUpdate }) => {
 
     return (
         <>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <Button 
+                        icon={<ReloadOutlined />} 
+                        onClick={() => fetchRequests(false)}
+                        loading={refreshing}
+                    >
+                        Refresh
+                    </Button>
+                    <span style={{ marginLeft: 12, color: '#999', fontSize: '12px' }}>
+                        Auto-refreshes every 10 seconds
+                    </span>
+                </div>
+            </div>
             <Table
                 dataSource={requests}
                 columns={columns}
@@ -447,6 +575,99 @@ const PriorSubmits = ({ onUpdate }) => {
                                         ⏳ You have already responded to this quote. Waiting for manager to send a new quote...
                                     </Text>
                                 </Card>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
+
+            {/* Bill Payment/Dispute Modal */}
+            <Modal
+                title="Service Bill"
+                open={billModalVisible}
+                onCancel={() => setBillModalVisible(false)}
+                width={600}
+                footer={null}
+            >
+                {selectedRequest && (
+                    <div>
+                        <Card size="small" style={{ marginBottom: '16px', backgroundColor: '#f6ffed' }}>
+                            <Descriptions column={1} size="small">
+                                <Descriptions.Item label="Service Type">
+                                    {selectedRequest.serviceType}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Completion Date">
+                                    {formatDate(selectedRequest.completionDate)}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Final Amount">
+                                    <Text strong style={{ fontSize: '20px', color: '#52c41a' }}>
+                                        ${selectedRequest.managerQuote}
+                                    </Text>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Payment Card">
+                                    <Text code>
+                                        {selectedRequest.cardNumber ? `****-****-****-${selectedRequest.cardNumber.slice(-4)}` : 'No card on file'}
+                                    </Text>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Manager Notes">
+                                    {selectedRequest.managerNote || 'No additional notes'}
+                                </Descriptions.Item>
+                            </Descriptions>
+                        </Card>
+
+                        {/* Show payment/dispute options only if not paid */}
+                        {!selectedRequest.clientPaid && !selectedRequest.isPaid ? (
+                            <div style={{ marginTop: '20px' }}>
+                                <Text strong>Choose an option:</Text>
+                                
+                                <Space direction="vertical" style={{ width: '100%', marginTop: '12px' }} size="large">
+                                    <Card 
+                                        hoverable
+                                        onClick={() => handlePayBill(selectedRequest)}
+                                        style={{ borderColor: '#52c41a', cursor: 'pointer' }}
+                                    >
+                                        <Space>
+                                            <CreditCardOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
+                                            <div>
+                                                <Text strong style={{ color: '#52c41a' }}>Pay Now with Credit Card</Text>
+                                                <br />
+                                                <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                    Complete payment immediately
+                                                </Text>
+                                            </div>
+                                        </Space>
+                                    </Card>
+
+                                    <Card style={{ borderColor: '#faad14' }}>
+                                        <Text strong style={{ color: '#faad14' }}>Dispute This Bill</Text>
+                                        <br />
+                                        <Text type="secondary" style={{ fontSize: '12px', marginBottom: '12px', display: 'block' }}>
+                                            If you believe the bill is incorrect, explain the issue:
+                                        </Text>
+                                        <TextArea
+                                            rows={3}
+                                            value={disputeNote}
+                                            onChange={(e) => setDisputeNote(e.target.value)}
+                                            placeholder="Explain why you're disputing this bill..."
+                                            maxLength={500}
+                                            showCount
+                                        />
+                                        <Button
+                                            type="default"
+                                            danger
+                                            onClick={() => handleDisputeBill(selectedRequest)}
+                                            style={{ marginTop: '12px' }}
+                                            block
+                                        >
+                                            Submit Dispute
+                                        </Button>
+                                    </Card>
+                                </Space>
+                            </div>
+                        ) : (
+                            <div style={{ marginTop: '20px', padding: '16px', background: '#f0f0f0', borderRadius: '8px' }}>
+                                <Text strong>Payment Status: </Text>
+                                <Text type="success">{selectedRequest.isPaid ? 'Paid & Confirmed' : 'Payment Received (Awaiting Confirmation)'}</Text>
                             </div>
                         )}
                     </div>

@@ -9,7 +9,8 @@ backend/node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
-backend/database.env
+*.env
+backend/*.env
 
 # Build outputs
 frontend/build/

@@ -50,6 +50,22 @@ export const RequestsAPI = {
     }
   },
 
+  getById: async (id) => {
+    try {
+      const response = await authenticatedFetch(`/service-requests/${id}`);
+      if (!response) return null;
+      
+      const data = await response.json();
+      if (data.success) {
+        return data.request || null;
+      }
+      return null;
+    } catch (error) {
+      console.error('getById error:', error);
+      return null;
+    }
+  },
+
   getByStatus: async (status) => {
     try {
       const response = await authenticatedFetch(`/service-requests?status=${status}`);
@@ -109,8 +125,8 @@ export const RequestsAPI = {
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         window.location.href = '/login';
         return { success: false, message: 'Unauthorized' };
       }
@@ -160,6 +176,12 @@ export const RequestsAPI = {
 
   markAsPaid: async (id) => {
     return await RequestsAPI.update(id, { isPaid: true });
+  },
+
+  // Client completes payment
+  clientPayBill: async (id) => {
+    const result = await RequestsAPI.update(id, { clientPaid: true });
+    return result;
   },
 
   move: async (id, fromState, toState, updates = {}) => {
@@ -214,6 +236,33 @@ export const RequestsAPI = {
     } catch (error) {
       return { success: false, message: error.message };
     }
+  },
+
+  // Client disputes a bill
+  disputeBill: async (requestId, disputeNote) => {
+    try {
+      const response = await authenticatedFetch(`/service-requests/${requestId}/dispute`, {
+        method: 'POST',
+        body: JSON.stringify({ disputeNote }),
+      });
+
+      if (!response) return { success: false };
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  // Client pays bill immediately
+  payBill: async (requestId) => {
+    return await RequestsAPI.clientPayBill(requestId);
+  },
+
+  // Manager revises disputed bill
+  reviseDisputedRequest: async (id, updates) => {
+    return await RequestsAPI.update(id, updates);
   }
 };
 
