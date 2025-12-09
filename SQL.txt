@@ -1,0 +1,129 @@
+-- Frequent Clients: Most completed orders
+SELECT 
+  c.clientID, 
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  c.email,
+  COUNT(sr.id) AS completedOrders
+FROM clients c
+INNER JOIN service_requests sr ON c.id = sr.clientId
+WHERE sr.state = 'completed'
+GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+ORDER BY completedOrders DESC
+LIMIT 10;
+
+
+-- Uncommitted Clients: 3+ requests but 0 completed
+SELECT 
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  c.email,
+  COUNT(sr.id) AS totalRequests,
+  SUM(CASE WHEN sr.state = 'completed' THEN 1 ELSE 0 END) AS completedOrders
+FROM clients c
+INNER JOIN service_requests sr ON c.id = sr.clientId
+GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+HAVING totalRequests >= 3 AND completedOrders = 0
+ORDER BY totalRequests DESC;
+
+
+-- Monthly Accepted Quotes: Change year and month values as needed
+SELECT 
+  sr.id,
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  sr.serviceType,
+  sr.managerQuote AS agreedPrice,
+  sr.createdAt AS quoteDate
+FROM service_requests sr
+INNER JOIN clients c ON sr.clientId = c.id
+WHERE sr.state IN ('accepted', 'completed')
+  AND YEAR(sr.createdAt) = 2024
+  AND MONTH(sr.createdAt) = 12
+GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.managerQuote, sr.createdAt
+ORDER BY sr.createdAt DESC;
+
+
+-- Prospective Clients: Registered but never submitted request
+SELECT 
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  c.email,
+  c.phoneNumber
+FROM clients c
+LEFT JOIN service_requests sr ON c.id = sr.clientId
+WHERE sr.id IS NULL
+ORDER BY c.clientID DESC;
+
+
+-- Largest Jobs: Highest number of rooms
+SELECT 
+  sr.id,
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  sr.serviceType,
+  sr.numRooms,
+  sr.serviceAddress,
+  sr.completionDate
+FROM service_requests sr
+INNER JOIN clients c ON sr.clientId = c.id
+WHERE sr.state = 'completed'
+GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.numRooms, sr.serviceAddress, sr.completionDate
+ORDER BY sr.numRooms DESC
+LIMIT 10;
+
+
+-- Overdue Bills: Unpaid bills older than 7 days
+SELECT 
+  sr.id,
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  sr.serviceType,
+  sr.managerQuote AS billAmount,
+  sr.completionDate,
+  DATEDIFF(NOW(), sr.completionDate) AS daysOverdue
+FROM service_requests sr
+INNER JOIN clients c ON sr.clientId = c.id
+WHERE sr.state = 'completed'
+  AND sr.isPaid = FALSE
+  AND sr.completionDate < DATE_SUB(NOW(), INTERVAL 7 DAY)
+GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.managerQuote, sr.completionDate
+ORDER BY daysOverdue DESC;
+
+
+-- Bad Clients: Have unpaid overdue bills
+SELECT 
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  c.email,
+  COUNT(sr.id) AS overdueCount,
+  SUM(sr.managerQuote) AS totalOwed
+FROM clients c
+INNER JOIN service_requests sr ON c.id = sr.clientId
+WHERE sr.state = 'completed'
+  AND sr.isPaid = FALSE
+  AND sr.completionDate < DATE_SUB(NOW(), INTERVAL 7 DAY)
+GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+ORDER BY overdueCount DESC;
+
+
+-- Good Clients: Always pay within 24 hours
+SELECT 
+  c.clientID,
+  CONCAT(c.firstName, ' ', c.lastName) AS clientName,
+  c.email,
+  COUNT(sr.id) AS totalCompletedOrders
+FROM clients c
+INNER JOIN service_requests sr ON c.id = sr.clientId
+WHERE sr.state = 'completed'
+GROUP BY c.id, c.clientID, c.firstName, c.lastName, c.email
+HAVING 
+  totalCompletedOrders > 0
+  AND SUM(
+        CASE 
+          WHEN sr.isPaid = FALSE
+           AND sr.completionDate IS NOT NULL
+           AND sr.completionDate <= NOW() - INTERVAL 1 DAY
+          THEN 1 ELSE 0
+        END
+      ) = 0
+ORDER BY totalCompletedOrders DESC;
