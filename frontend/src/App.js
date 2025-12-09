@@ -5,7 +5,6 @@ import { AuthProvider } from './context/AuthProvider.jsx';
 import './App.css';
 
 // primary web pages
-import Nav from './components/nav/nav.jsx';
 import Home from './components/home/home.jsx';
 import Login from './components/login/login.jsx';
 import Register from './components/register/register.jsx';
@@ -18,9 +17,7 @@ function App() {
 
   return (
     <div className="App">
-
       <AuthProvider>
-        <Nav />
         <Routes>
           {/* Home, Login, Register apart of navbar */}
           <Route path='/' element={<Home />} />

@@ -4,8 +4,7 @@
     display: flex;
     width: 300px;
     margin: 25px auto;
-    border: 2px solid #ccc;
-    border-radius: 8px;
+    border: 1px solid #dee2e6;
     overflow: hidden;
 }
 
@@ -18,6 +17,7 @@
     z-index: 2;
     position: relative;
     font-weight: bold;
+    color: #495057;
 }
 
 .client-tabs .tab-highlight {
@@ -26,9 +26,13 @@
     left: 0;
     width: 50%;     /* two tabs → half width */
     height: 100%;
-    background: #c8eaff;
+    background: #495057;
     transition: transform 0.3s ease;
     z-index: 1;
+}
+
+.client-tabs button.active {
+    color: #fff;
 }
 
 

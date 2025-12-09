@@ -108,8 +108,8 @@ const FilterTable = ({ columns, data, onRowClick }) => {
                 {col.label}{" "}
                 {sortConfig?.key === col.key
                   ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
+                    ? "^"
+                    : "v"
                   : ""}
               </th>
             ))}

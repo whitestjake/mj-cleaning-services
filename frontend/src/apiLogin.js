@@ -1,22 +1,49 @@
+import { API_ENDPOINTS } from './config';
 
-
-// fake backend
-
-const users = [
-  { email: "client@client.com", password: "password", role: "client" },
-  { email: "anna.johnson@ajcleaning.com", password: "password", role: "manager" },
-];
-
-// Simulate login request
+// Login request
 export const loginUser = async (email, password) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const user = users.find(u => u.email === email && u.password === password);
-      if (user) {
-        resolve({ success: true, role: user.role, token: "mock-token-123" });
-      } else {
-        resolve({ success: false, message: "Invalid email or password" });
-      }
-    }, 500); // simulate network delay
-  });
+  try {
+    const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Store token in sessionStorage
+      sessionStorage.setItem('token', data.token);
+      return { success: true, role: data.role, token: data.token, user: data.user };
+    } else {
+      return { success: false, message: data.message || 'Login failed' };
+    }
+  } catch (error) {
+    return { success: false, message: 'Network error. Please check if the server is running.' };
+  }
+};
+
+// Register request
+export const registerUser = async (userData) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.AUTH.REGISTER, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      return { success: true, message: data.message || 'Registration successful!' };
+    } else {
+      return { success: false, message: data.message || 'Registration failed' };
+    }
+  } catch (error) {
+    return { success: false, message: 'Network error. Please check if the server is running.' };
+  }
 };

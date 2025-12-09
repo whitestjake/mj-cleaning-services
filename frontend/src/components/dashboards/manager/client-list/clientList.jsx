@@ -12,7 +12,6 @@ const ClientList = () => {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
 
-  // Fetch clients from API
   useEffect(() => {
     const fetchClients = async () => {
       const allClients = await RequestsAPI.getAllClients();
@@ -22,7 +21,7 @@ const ClientList = () => {
   }, []);
 
   const columns = [
-    { key: "name", label: "Client Name", filterType: "text" },
+    { key: "clientName", label: "Client Name", filterType: "text" },
     { key: "phone", label: "Phone", filterType: "text" },
     { key: "completedRequests", label: "Completed", filterType: "number" },
     { key: "rejectedRequests", label: "Rejected", filterType: "number" },
@@ -30,7 +29,7 @@ const ClientList = () => {
 
   // Fields for the modal display
   const modalFields = [
-    { key: "name", label: "Client Name" },
+    { key: "clientName", label: "Client Name" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
     { key: "totalRequests", label: "Total Requests" },
@@ -52,7 +51,7 @@ const ClientList = () => {
 
       {selectedClient && (
         <SubWindowModal
-          title={selectedClient.name}
+          title={selectedClient.clientName || selectedClient.name || 'Client Details'}
           data={selectedClient}
           fields={modalFields}
           type="client"
