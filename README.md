@@ -21,8 +21,12 @@ Project built using these technologies:
 1. Start Apache and MySQL from the XAMPP Control Panel.
 2. Open a terminal in this project folder.
 3. Open http://localhost/phpmyadmin/ in your browser.
-4. Select 'Import' at the top menu, choose the `database.sql` file from this project, and click 'Go'.
-5. The database and tables will be created if they don't exist.
+4. Select 'Import' at the top menu, choose one of the following SQL files:
+   - `database.sql` - Basic database structure only (empty tables)
+   - `mj_cleaning_services.sql` - Complete database with test data (recommended for testing)
+5. Click 'Go' and the database and tables will be created.
+
+> **Note:** Use `mj_cleaning_services.sql` if you want pre-populated test data including sample clients, service requests, and transaction records.
 
 ## Web Application Setup
 
@@ -33,6 +37,8 @@ cd mj-cleaning-services
 ```
 
 ### 2. Backend Setup
+
+> **Note:** Make sure you have completed the Database Setup (XAMPP) section above before proceeding.
 
 #### 2.1 Navigate to backend folder
 ```
@@ -57,13 +63,27 @@ DB_PORT=3306
 DB_NAME=mj_cleaning_services
 DB_USER=root
 DB_PASSWORD=
-```
 
+JWT_SECRET=your_secret_key_here_change_in_production
+```
 #### 2.4 Start the backend
 ```
 npm start
 ```
 Unless you manually adjusted this, it should indicate the backend is listening on port ```5000```
+
+#### 2.5 Create an Admin Account
+To access the manager dashboard, you need to create an admin account. In a new terminal window (while the backend is still running):
+```
+cd backend
+node create-admin.js
+```
+Follow the prompts to enter:
+* Admin username
+* Admin email (optional)
+* Admin password
+
+You can use these credentials to log in to the manager dashboard at ```http://localhost:3000/```
 
 ### 3. Frontend Setup (React)
 

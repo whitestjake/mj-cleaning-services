@@ -79,7 +79,7 @@ const upload = multer({
 });
 
 // JWT secret from environment
-const JWT_SECRET = process.env.JWT_SECRET || 'default-dev-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'mj-cleaning-dev-secret-2024-change-in-production';
 
 if (!process.env.JWT_SECRET) {
   console.warn('\nWARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!\n');
