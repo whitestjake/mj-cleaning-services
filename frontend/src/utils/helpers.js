@@ -1,4 +1,4 @@
-// Shared utility functions
+// Utility functions for formatting and data processing
 
 /**
  * Format date/time for display
@@ -26,8 +26,8 @@ export const getAuthToken = () => {
 };
 
 /**
- * Fetch negotiation records for a service request
- * DEPRECATED: Use RequestsAPI.getRecords() instead
+ * Fetch negotiation records (deprecated)
+ * Use RequestsAPI.getRecords() instead
  * @param {number} requestId - Service request ID
  * @returns {Promise<Array>} Array of records
  */

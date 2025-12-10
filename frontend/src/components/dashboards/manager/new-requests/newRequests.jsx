@@ -1,23 +1,22 @@
-
-
-
-import { useState, useEffect } from "react";
+// Manager view for new service requests - allows reviewing and responding to requests
+import { useState, useEffect } from 'react';
 import { message, Timeline, Button, InputNumber, DatePicker, Input, Radio, Space } from 'antd';
 import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, DollarOutlined } from '@ant-design/icons';
-import { RequestsAPI } from "../../../../api.js";
+import { RequestsAPI } from '../../../../api';
 import { formatDateTime, fetchNegotiationRecords } from '../../../../utils/helpers';
 import dayjs from 'dayjs';
 
-import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
-import FilterTable from '../filter-bar/filterBar.jsx';
+import SubWindowModal from '../sub-window-modal/subWindowModal';
+import FilterTable from '../filter-bar/filterBar';
 
-import "../managerWindow.css";
+import '../managerWindow.css';
 
 const NewRequests = () => {
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
-  const [responseType, setResponseType] = useState('revise'); // 'accept', 'reject', 'revise'
+  // Response form fields
+  const [responseType, setResponseType] = useState('revise');
   const [managerQuote, setManagerQuote] = useState("");
   const [managerTime, setManagerTime] = useState("");
   const [managerNotes, setManagerNotes] = useState("");
@@ -27,12 +26,17 @@ const NewRequests = () => {
 
   useEffect(() => {
     const fetchRequests = async () => {
-      const data = await RequestsAPI.getByStatus("new");
-      setRequests(data);
+      try {
+        const data = await RequestsAPI.getByStatus("new");
+        setRequests(data);
+      } catch (error) {
+        console.error('Failed to fetch new requests:', error);
+      }
     };
     fetchRequests();
   }, []);
 
+  // Open request details and load negotiation history
   const openModal = async (req) => {
     setSelectedRequest(req);
     
@@ -118,6 +122,12 @@ const NewRequests = () => {
       return;
     }
 
+    const parsedQuote = parseFloat(managerQuote);
+    if (isNaN(parsedQuote) || parsedQuote <= 0) {
+      message.warning("Please enter a valid quote amount");
+      return;
+    }
+
     try {
       const targetStatus = responseType === 'accept' ? 'accepted' : 'pending_response';
       
@@ -136,7 +146,7 @@ const NewRequests = () => {
       // Create negotiation record
       await RequestsAPI.addRecord(selectedRequest.id, {
         itemType: 'quote',
-        price: parseFloat(managerQuote),
+        price: parsedQuote,
         businessTime: managerTime,
         messageBody: managerNotes || (responseType === 'accept' ? 'Manager accepted client offer' : 'Manager provided quote')
       });

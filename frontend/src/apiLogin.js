@@ -1,6 +1,7 @@
+// Authentication API functions for login and registration
 import { API_ENDPOINTS } from './config';
 
-// Login request
+// Authenticate user with email and password
 export const loginUser = async (email, password) => {
   try {
     const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
@@ -25,7 +26,7 @@ export const loginUser = async (email, password) => {
   }
 };
 
-// Register request
+// Register new user account
 export const registerUser = async (userData) => {
   try {
     const response = await fetch(API_ENDPOINTS.AUTH.REGISTER, {

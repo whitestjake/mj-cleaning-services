@@ -1,15 +1,15 @@
-
-
-import { useState, useEffect } from "react";
+// Manager view for requests awaiting client response to quotes
+import { useState, useEffect } from 'react';
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import { RequestsAPI } from "../../../../api.js";
+import { RequestsAPI } from '../../../../api';
+import { API_BASE_URL } from '../../../../config';
 import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
-import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
-import FilterTable from '../filter-bar/filterBar.jsx';
+import SubWindowModal from '../sub-window-modal/subWindowModal';
+import FilterTable from '../filter-bar/filterBar';
 
-import "../managerWindow.css";
+import '../managerWindow.css';
 
 const PendingResponse = () => {
   const [pending, setPending] = useState([]);
@@ -18,8 +18,12 @@ const PendingResponse = () => {
 
   useEffect(() => {
     const fetchPending = async () => {
-      const data = await RequestsAPI.getByStatus("pending_response");
-      setPending(data);
+      try {
+        const data = await RequestsAPI.getByStatus("pending_response");
+        setPending(data);
+      } catch (error) {
+        console.error('Failed to fetch pending requests:', error);
+      }
     };
     fetchPending();
   }, []);
@@ -32,7 +36,7 @@ const PendingResponse = () => {
       req.photo3Path,
       req.photo4Path,
       req.photo5Path
-    ].filter(Boolean).map(path => `http://localhost:5000${path}`);
+    ].filter(Boolean).map(path => `${API_BASE_URL}${path}`);
     
     setSelectedRequest({ ...req, photos });
     

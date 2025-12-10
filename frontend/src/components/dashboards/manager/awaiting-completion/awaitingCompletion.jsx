@@ -1,15 +1,15 @@
-
-
-import { useState, useEffect } from "react";
+// Manager view for accepted requests awaiting service completion
+import { useState, useEffect } from 'react';
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import { RequestsAPI } from "../../../../api.js";
+import { RequestsAPI } from '../../../../api';
+import { API_BASE_URL } from '../../../../config';
 import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
-import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
-import FilterTable from '../filter-bar/filterBar.jsx';
+import SubWindowModal from '../sub-window-modal/subWindowModal';
+import FilterTable from '../filter-bar/filterBar';
 
-import "../managerWindow.css";
+import '../managerWindow.css';
 
 const AwaitingCompletion = () => {
   const [requests, setRequests] = useState([]);
@@ -18,8 +18,12 @@ const AwaitingCompletion = () => {
 
   useEffect(() => {
     const fetchRequests = async () => {
-      const data = await RequestsAPI.getByStatus("accepted");
-      setRequests(data);
+      try {
+        const data = await RequestsAPI.getByStatus("accepted");
+        setRequests(data);
+      } catch (error) {
+        console.error('Failed to fetch accepted requests:', error);
+      }
     };
     fetchRequests();
   }, []);
@@ -98,7 +102,7 @@ const AwaitingCompletion = () => {
             {photos.map((photo, idx) => (
               <img
                 key={idx}
-                src={`http://localhost:5000${photo}`}
+                src={`${API_BASE_URL}${photo}`}
                 alt={`Uploaded ${idx + 1}`}
                 style={{ 
                   width: '120px', 
@@ -108,7 +112,7 @@ const AwaitingCompletion = () => {
                   border: '1px solid #d9d9d9',
                   borderRadius: '4px'
                 }}
-                onClick={() => window.open(`http://localhost:5000${photo}`, '_blank')}
+                onClick={() => window.open(`${API_BASE_URL}${photo}`, '_blank')}
               />
             ))}
           </div>

@@ -1,9 +1,9 @@
-
+// Login page component
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout, Card, Form, Input, Button, Alert, Typography } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined, HomeOutlined } from '@ant-design/icons';
-import { useAuth } from '../../context/AuthProvider.jsx';
+import { useAuth } from '../../context/AuthProvider';
 
 const { Content } = Layout;
 const { Title } = Typography;
@@ -14,6 +14,7 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Handle login form submission
     const handleSubmit = async (values) => {
         setLoading(true);
         setError('');

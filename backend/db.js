@@ -1,10 +1,17 @@
-// DB setup and shared helpers
+// Database setup and connection pool configuration
 const dotenv = require('dotenv');
 const path = require('path');
 dotenv.config({ path: path.join(__dirname, 'database.env') });
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
+// Validate required environment variables
+if (!process.env.DB_NAME) {
+    console.error('Error: DB_NAME environment variable is required');
+    process.exit(1);
+}
+
+// MySQL connection pool
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -16,8 +23,17 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
-// ------------------- Admins -------------------
-// Admin authentication
+// Test database connection
+pool.getConnection()
+    .then(connection => {
+        console.log('Database connected successfully');
+        connection.release();
+    })
+    .catch(err => {
+        console.error('Database connection failed:', err.message);
+    });
+
+// Admin management functions
 async function authenticateAdmin(email, password) {
     const [rows] = await pool.query(
         'SELECT * FROM admins WHERE email = ?', 
@@ -35,7 +51,7 @@ async function authenticateAdmin(email, password) {
     return adminWithoutPassword;
 }
 
-// Add admin function 
+// Create new admin account
 async function addAdmin(username, password, email = null) {
     const hash = await bcrypt.hash(password, 10);
     await pool.query(
@@ -44,7 +60,7 @@ async function addAdmin(username, password, email = null) {
     );
 }
 
-// ------------------- Clients -------------------
+// Client management functions
 async function addClient({ firstName, lastName, address, phoneNumber, email, cardNumber, password }) {
 
     if (!firstName || !lastName || !email || !password) {
@@ -111,8 +127,7 @@ async function authenticateClient(email, password) {
     return clientWithoutPassword;
 }
 
-// ------------------- Service Requests -------------------
-// Minimal: add, get one, list by client/all
+// Service request management functions
 async function addServiceRequest({
     clientId, serviceAddress, serviceType, numRooms, serviceDate, clientBudget, systemEstimate, addOutdoor, note, state,
     managerQuote, scheduledTime, managerNote,

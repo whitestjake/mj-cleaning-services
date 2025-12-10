@@ -1,9 +1,12 @@
+// API client for authenticated requests to backend
 import { API_ENDPOINTS } from './config';
 
+// Get JWT token from session storage
 const getAuthToken = () => {
   return sessionStorage.getItem('token');
 };
 
+// Wrapper for fetch with automatic authentication headers
 const authenticatedFetch = async (url, options = {}) => {
   const token = getAuthToken();
   const headers = {
@@ -34,6 +37,7 @@ const authenticatedFetch = async (url, options = {}) => {
   }
 };
 
+// Service requests and client API methods
 export const RequestsAPI = {
   getCurrentUser: async () => {
     try {

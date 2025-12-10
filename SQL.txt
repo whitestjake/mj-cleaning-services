@@ -1,4 +1,5 @@
 -- Frequent Clients: Most completed orders
+USE `mj_cleaning_services`;
 SELECT 
   c.clientID, 
   CONCAT(c.firstName, ' ', c.lastName) AS clientName,
@@ -13,6 +14,7 @@ LIMIT 10;
 
 
 -- Uncommitted Clients: 3+ requests but 0 completed
+USE `mj_cleaning_services`;
 SELECT 
   c.clientID,
   CONCAT(c.firstName, ' ', c.lastName) AS clientName,
@@ -27,6 +29,7 @@ ORDER BY totalRequests DESC;
 
 
 -- Monthly Accepted Quotes: Change year and month values as needed
+USE `mj_cleaning_services`;
 SELECT 
   sr.id,
   c.clientID,
@@ -37,13 +40,14 @@ SELECT
 FROM service_requests sr
 INNER JOIN clients c ON sr.clientId = c.id
 WHERE sr.state IN ('accepted', 'completed')
-  AND YEAR(sr.createdAt) = 2024
+  AND YEAR(sr.createdAt) = 2025
   AND MONTH(sr.createdAt) = 12
 GROUP BY sr.id, c.clientID, c.firstName, c.lastName, sr.serviceType, sr.managerQuote, sr.createdAt
 ORDER BY sr.createdAt DESC;
 
 
 -- Prospective Clients: Registered but never submitted request
+USE `mj_cleaning_services`;
 SELECT 
   c.clientID,
   CONCAT(c.firstName, ' ', c.lastName) AS clientName,
@@ -56,6 +60,7 @@ ORDER BY c.clientID DESC;
 
 
 -- Largest Jobs: Highest number of rooms
+USE `mj_cleaning_services`;
 SELECT 
   sr.id,
   c.clientID,
@@ -73,6 +78,7 @@ LIMIT 10;
 
 
 -- Overdue Bills: Unpaid bills older than 7 days
+USE `mj_cleaning_services`;
 SELECT 
   sr.id,
   c.clientID,
@@ -91,6 +97,7 @@ ORDER BY daysOverdue DESC;
 
 
 -- Bad Clients: Have unpaid overdue bills
+USE `mj_cleaning_services`;
 SELECT 
   c.clientID,
   CONCAT(c.firstName, ' ', c.lastName) AS clientName,
@@ -107,6 +114,7 @@ ORDER BY overdueCount DESC;
 
 
 -- Good Clients: Always pay within 24 hours
+USE `mj_cleaning_services`;
 SELECT 
   c.clientID,
   CONCAT(c.firstName, ' ', c.lastName) AS clientName,

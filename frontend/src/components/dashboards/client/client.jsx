@@ -10,29 +10,33 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { RequestsAPI } from '../../../api';
 
-import RequestForm from './request-form/requestForm.jsx';
-import PriorSubmits from './prior-submissions/priorSubmits.jsx';
+import RequestForm from './request-form/requestForm';
+import PriorSubmits from './prior-submissions/priorSubmits';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
 
 const ClientDashboard = () => {
     const navigate = useNavigate();
+    
+    // State management
     const [activeTab, setActiveTab] = useState("request");
     const [collapsed, setCollapsed] = useState(false);
     const [pendingQuotesCount, setPendingQuotesCount] = useState(0);
 
+    // Load pending quotes on mount
     useEffect(() => {
         fetchPendingQuotes();
     }, []);
 
+    // Fetch and count requests with pending responses
     const fetchPendingQuotes = async () => {
         try {
             const data = await RequestsAPI.getByStatus();
             const pendingCount = (data || []).filter(req => req.state === 'pending_response').length;
             setPendingQuotesCount(pendingCount);
         } catch (err) {
-            // Silently fail for pending quotes count
+            // Silent fail - badge will show 0
         }
     };
 
@@ -40,6 +44,7 @@ const ClientDashboard = () => {
         navigate('/');
     };
 
+    // Service pricing table data
     const servicesData = [
         {
             key: '1',
@@ -67,6 +72,7 @@ const ClientDashboard = () => {
         }
     ];
 
+    // Table column configuration
     const columns = [
         {
             title: 'Services',
@@ -85,6 +91,7 @@ const ClientDashboard = () => {
         }
     ];
 
+    // Sidebar menu items
     const menuItems = [
         {
             key: 'request',
@@ -160,7 +167,8 @@ const ClientDashboard = () => {
                 
                 <Content style={{ padding: '8px', background: '#f8f9fa', overflow: 'auto', flex: 1 }}>
                     <div style={{ maxWidth: '1200px', margin: '0 auto', height: '100%' }}>
-
+                        
+                        {/* Services pricing table */}
                         <Card title="Available Services" style={{ marginBottom: '8px', border: '1px solid #dee2e6', backgroundColor: '#fff' }} size="small">
                             <Table 
                                 dataSource={servicesData} 
@@ -171,7 +179,7 @@ const ClientDashboard = () => {
                             />
                         </Card>
 
-
+                        {/* Main content area - switches between request form and submissions list */}
                         <Card size="small" style={{ flex: 1, border: '1px solid #dee2e6', backgroundColor: '#fff' }}>
                             {activeTab === 'request' && (
                                 <div>

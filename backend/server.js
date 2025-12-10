@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
 
-// Load environment variables
+// Load database configuration from .env file
 dotenv.config({ path: path.join(__dirname, 'database.env') });
 
 // Import database functions
@@ -30,11 +30,16 @@ const {
     addMessage
 } = require('./db');
 
+// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Middleware configuration
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://localhost:5000'],
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -129,6 +134,14 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'Missing required fields: firstName, lastName, email, password' 
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 8 characters long' 
       });
     }
 
@@ -240,6 +253,23 @@ app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), 
       note
     } = req.body;
 
+    // Validate inputs
+    const parsedNumRooms = parseInt(numRooms);
+    if (!parsedNumRooms || parsedNumRooms < 1 || parsedNumRooms > 50) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Number of rooms must be between 1 and 50' 
+      });
+    }
+
+    const parsedDate = new Date(serviceDate);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid service date' 
+      });
+    }
+
     // Handle uploaded photos
     const photoPaths = {};
     if (req.files && req.files.length > 0) {
@@ -252,8 +282,8 @@ app.post('/api/service-requests', authenticateToken, upload.array('photos', 5), 
       clientId: req.user.id,
       serviceAddress,
       serviceType,
-      numRooms: parseInt(numRooms) || 0,
-      serviceDate: new Date(serviceDate),
+      numRooms: parsedNumRooms,
+      serviceDate: parsedDate,
       clientBudget: clientBudget ? parseFloat(clientBudget) : null,
       systemEstimate: systemEstimate ? parseFloat(systemEstimate) : null,
       addOutdoor: addOutdoor === 'true' || addOutdoor === true,
@@ -844,7 +874,3 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-
-
-
-

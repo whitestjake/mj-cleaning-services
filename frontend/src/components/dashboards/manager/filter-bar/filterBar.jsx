@@ -1,15 +1,12 @@
-
-
-import { useState, useMemo } from "react";
-import "./filterBar.css";
+// Reusable table component with filtering and sorting capabilities
+import { useState, useMemo } from 'react';
+import './filterBar.css';
 
 const FilterTable = ({ columns, data, onRowClick }) => {
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState(null);
 
-  // =========================
-  // FILTER HANDLERS
-  // =========================
+  // Filter change handler
   const handleFilterChange = (key, value, type = "value") => {
     setFilters((prev) => ({
       ...prev,
@@ -20,9 +17,7 @@ const FilterTable = ({ columns, data, onRowClick }) => {
     }));
   };
 
-  // =========================
-  // SORT HANDLER
-  // =========================
+  // Sort column handler
   const handleSort = (key) => {
     setSortConfig((prev) => {
       if (prev && prev.key === key) {
@@ -32,9 +27,7 @@ const FilterTable = ({ columns, data, onRowClick }) => {
     });
   };
 
-  // =========================
-  // FILTERED + SORTED DATA
-  // =========================
+  // Apply filters and sorting to data
   const filteredData = useMemo(() => {
     let filtered = data;
 

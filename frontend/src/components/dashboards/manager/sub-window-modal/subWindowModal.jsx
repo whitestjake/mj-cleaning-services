@@ -1,13 +1,16 @@
-import { useState } from "react";
+// Reusable modal component for displaying request and client details
+import { useState } from 'react';
 
-import "./subWindowModal.css";
+import './subWindowModal.css';
 
+// Valid action types for modal buttons
 const allowedActionTypes = new Set(["new", "pending", "queued", "completed"]);
 
 const SubWindowModal = ({ title, data, fields, type, onClose, actions }) => {
   const [enlargedIndex, setEnlargedIndex] = useState(null);
   const hasPhotos = Array.isArray(data.photos) && data.photos.length > 0;
 
+  // Photo gallery navigation
   const openPhoto = (idx) => {
     if (!hasPhotos) return;
     setEnlargedIndex(idx);
