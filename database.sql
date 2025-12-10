@@ -1,3 +1,4 @@
+
 -- Create database if it does not exist
 CREATE DATABASE IF NOT EXISTS `mj_cleaning_services`;
 
@@ -94,5 +95,6 @@ CREATE TABLE IF NOT EXISTS records (
 
     FOREIGN KEY (requestId) REFERENCES service_requests(id)
 );
+
 
 
