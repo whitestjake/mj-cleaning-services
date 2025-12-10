@@ -1,3 +1,4 @@
+// Statistics dashboard - displays service and financial analytics
 import { useState, useEffect } from 'react';
 import { Card, Table, Tabs, Spin, DatePicker, Button, Space } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -15,6 +16,7 @@ const Statistics = () => {
 
     const getToken = () => sessionStorage.getItem('token');
 
+    // Generic fetch function for statistics data
     const fetchData = async (endpoint, params = {}) => {
         setLoading(true);
         try {

@@ -1,3 +1,4 @@
+// Client's request history - view and manage submitted service requests
 import { useState, useEffect, useRef } from 'react';
 import { Table, Tag, Spin, Alert, Button, Space, Modal, Typography, Descriptions, Card, Input, Radio, InputNumber, message } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, DollarOutlined, CreditCardOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -19,13 +20,16 @@ const PriorSubmits = ({ onUpdate }) => {
     const [disputeNote, setDisputeNote] = useState('');
     const [billModalVisible, setBillModalVisible] = useState(false);
     const intervalRef = useRef(null);
+    const isFetchingRef = useRef(false);
 
     useEffect(() => {
         fetchRequests();
         
-        // Poll for updates every 10 seconds
+        // Auto-refresh every 10 seconds
         intervalRef.current = setInterval(() => {
-            fetchRequests(true); // Silent refresh
+            if (!isFetchingRef.current) {
+                fetchRequests(true);
+            }
         }, 10000);
         
         return () => {
@@ -36,6 +40,9 @@ const PriorSubmits = ({ onUpdate }) => {
     }, []);
 
     const fetchRequests = async (silent = false) => {
+        if (isFetchingRef.current) return;
+        
+        isFetchingRef.current = true;
         if (!silent) {
             setRefreshing(true);
         }
@@ -46,6 +53,7 @@ const PriorSubmits = ({ onUpdate }) => {
             setError('Network error');
         } finally {
             setLoading(false);
+            isFetchingRef.current = false;
             if (!silent) {
                 setRefreshing(false);
             }
@@ -64,6 +72,7 @@ const PriorSubmits = ({ onUpdate }) => {
         });
     };
 
+    // Get colored tag based on request status
     const getStatusTag = (status, record) => {
         // Special handling for completed but unpaid bills
         if (status === 'completed') {
@@ -117,7 +126,8 @@ const PriorSubmits = ({ onUpdate }) => {
     };
 
     const handleCounterOffer = async (request) => {
-        if (!counterOffer || parseFloat(counterOffer) <= 0) {
+        const parsedOffer = parseFloat(counterOffer);
+        if (!counterOffer || isNaN(parsedOffer) || parsedOffer <= 0) {
             Modal.error({ content: 'Please enter a valid counter-offer amount' });
             return;
         }
@@ -128,13 +138,13 @@ const PriorSubmits = ({ onUpdate }) => {
             if (result.success) {
                 // Clean up the client note - remove if it's just repeating the price
                 let noteText = clientNote.trim();
-                // Check if note is just the price repeated (e.g., "120", "$120", "120.00")
-                if (!noteText || noteText === counterOffer.toString() || noteText === `$${counterOffer}` || parseFloat(noteText) === parseFloat(counterOffer)) {
-                    noteText = ''; // Use empty note instead of repeating price
+                // Check if note is just the price repeated
+                if (!noteText || noteText === parsedOffer.toString() || noteText === `$${parsedOffer}` || parseFloat(noteText) === parsedOffer) {
+                    noteText = '';
                 }
                 
                 // First, mark the manager's latest quote as rejected by updating clientResponse
-                const responseText = noteText ? `Counter-offer: $${counterOffer}. ${noteText}` : `Counter-offer: $${counterOffer}`;
+                const responseText = noteText ? `Counter-offer: $${parsedOffer}. ${noteText}` : `Counter-offer: $${parsedOffer}`;
                 await RequestsAPI.updateQuoteResponse(request.id, { 
                     clientResponse: responseText,
                     state: 'rejected'
@@ -143,7 +153,7 @@ const PriorSubmits = ({ onUpdate }) => {
                 // Then, create a NEW record for client's counter-offer quote
                 await RequestsAPI.addRecord(request.id, {
                     itemType: 'quote',
-                    price: parseFloat(counterOffer),
+                    price: parsedOffer,
                     businessTime: null,
                     senderName: 'client',
                     messageBody: noteText || 'Client counter-offer'
@@ -151,7 +161,7 @@ const PriorSubmits = ({ onUpdate }) => {
                 
                 Modal.success({ 
                     title: 'Counter-offer Submitted',
-                    content: `Your counter-offer of $${counterOffer} has been sent to the manager for review.` 
+                    content: `Your counter-offer of $${parsedOffer} has been sent to the manager for review.` 
                 });
                 setClientNote('');
                 setCounterOffer('');
@@ -163,7 +173,8 @@ const PriorSubmits = ({ onUpdate }) => {
                 Modal.error({ content: 'Failed to submit counter-offer' });
             }
         } catch (err) {
-            Modal.error({ content: 'Network error' });
+            Modal.error({ content: 'Network error. Please try again.' });
+            console.error('Counter-offer error:', err);
         }
     };
 
@@ -192,7 +203,8 @@ const PriorSubmits = ({ onUpdate }) => {
                 Modal.error({ content: result.message || 'Failed to cancel request' });
             }
         } catch (err) {
-            Modal.error({ content: 'Network error: ' + err.message });
+            Modal.error({ content: 'Network error. Please try again.' });
+            console.error('Reject quote error:', err);
         }
     };
 

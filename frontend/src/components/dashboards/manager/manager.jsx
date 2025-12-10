@@ -1,7 +1,5 @@
-
-
-
-import { useState, useEffect } from "react";
+// Manager dashboard - main view for service request management
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Typography, Button, Space, message } from 'antd';
 import { 
     DashboardOutlined, 
@@ -14,16 +12,16 @@ import {
     StopOutlined,
     BarChartOutlined
 } from '@ant-design/icons';
-import { useAuth } from '../../../context/AuthProvider.jsx';
+import { useAuth } from '../../../context/AuthProvider';
 import { useNavigate } from 'react-router-dom';
-import { RequestsAPI } from "../../../api.js";
+import { RequestsAPI } from '../../../api';
 
-import NewRequests from "./new-requests/newRequests.jsx";
-import PendingResponses from "./pending-response/pendingResponse.jsx";
-import AwaitingCompletion from "./awaiting-completion/awaitingCompletion.jsx";
-import AcceptedRequests from "./accepted-requests/acceptedRequests.jsx";
-import ClientList from "./client-list/clientList.jsx";
-import Statistics from "./statistics/statistics.jsx";
+import NewRequests from './new-requests/newRequests';
+import PendingResponses from './pending-response/pendingResponse';
+import AwaitingCompletion from './awaiting-completion/awaitingCompletion';
+import AcceptedRequests from './accepted-requests/acceptedRequests';
+import ClientList from './client-list/clientList';
+import Statistics from './statistics/statistics';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -34,6 +32,7 @@ const ManagerDashboard = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
+  // Service request states
   const [newRequests, setNewRequests] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [queuedRequests, setQueuedRequests] = useState([]);
@@ -41,6 +40,7 @@ const ManagerDashboard = () => {
   const [rejectedRequests, setRejectedRequests] = useState([]);
   const [clients, setClients] = useState([]);
 
+  // Fetch all request data and clients
   const fetchData = async () => {
     try {
       const [newData, pendingData, queuedData, completedData, rejectedData, clientsData] = await Promise.all([
@@ -60,6 +60,7 @@ const ManagerDashboard = () => {
       setClients(clientsData);
     } catch (err) {
       message.error('Failed to fetch data');
+      console.error('Fetch data error:', err);
     }
   };
 
@@ -67,6 +68,7 @@ const ManagerDashboard = () => {
     fetchData();
   }, []);
 
+  // Move request between states
   const moveToPending = (req) => {
     setPendingRequests((prev) => [...prev, req]);
     setNewRequests((prev) => prev.filter((r) => r.id !== req.id));

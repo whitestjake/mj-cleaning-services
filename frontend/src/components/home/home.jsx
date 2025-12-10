@@ -1,3 +1,4 @@
+// Home page component - landing page with service information
 import { useNavigate } from 'react-router-dom';
 import { Layout, Typography, Table, Button, Space, Card } from 'antd';
 import { HomeOutlined } from '@ant-design/icons';
@@ -8,6 +9,7 @@ const { Title } = Typography;
 const Home = () => {
     const navigate = useNavigate();
  
+    // Navigation handlers
     const loginRedirect = () => {
         navigate('/login')
     }
@@ -16,6 +18,7 @@ const Home = () => {
         navigate('/register')
     }
 
+    // Service pricing data
     const servicesData = [
         {
             key: '1',

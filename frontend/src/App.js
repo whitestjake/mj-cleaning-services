@@ -1,15 +1,15 @@
 import { Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthProvider.jsx';
+import { AuthProvider } from './context/AuthProvider';
 
 import './App.css';
 
-// primary web pages
-import Home from './components/home/home.jsx';
-import Login from './components/login/login.jsx';
-import Register from './components/register/register.jsx';
-import ClientDashboard from './components/dashboards/client/client.jsx';
-import ManagerDashboard from './components/dashboards/manager/manager.jsx';
-import ProtectedRoute from './components/protected-route/protectedRoute.jsx';
+// Page components
+import Home from './components/home/home';
+import Login from './components/login/login';
+import Register from './components/register/register';
+import ClientDashboard from './components/dashboards/client/client';
+import ManagerDashboard from './components/dashboards/manager/manager';
+import ProtectedRoute from './components/protected-route/protectedRoute';
 
 
 function App() {
@@ -18,12 +18,12 @@ function App() {
     <div className="App">
       <AuthProvider>
         <Routes>
-          {/* Home, Login, Register apart of navbar */}
+          {/* Public routes */}
           <Route path='/' element={<Home />} />
           <Route path='/login' element={<Login />} />
           <Route path='/register' element={<Register />} />
 
-          {/* client and manager dashboards under protected routes */}
+          {/* Protected routes - require authentication */}
           <Route 
             path='/client-dashboard'
             element={

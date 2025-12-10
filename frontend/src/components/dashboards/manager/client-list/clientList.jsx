@@ -1,12 +1,11 @@
+// Manager view for client list with request statistics
+import { useState, useEffect } from 'react';
+import { RequestsAPI } from '../../../../api';
 
+import FilterTable from '../filter-bar/filterBar';
+import SubWindowModal from '../sub-window-modal/subWindowModal';
 
-import { useState, useEffect } from "react";
-import { RequestsAPI } from "../../../../api.js";
-
-import FilterTable from "../filter-bar/filterBar.jsx";
-import SubWindowModal from "../sub-window-modal/subWindowModal.jsx";
-
-import "../managerWindow.css";
+import '../managerWindow.css';
 
 const ClientList = () => {
   const [clients, setClients] = useState([]);
@@ -14,8 +13,12 @@ const ClientList = () => {
 
   useEffect(() => {
     const fetchClients = async () => {
-      const allClients = await RequestsAPI.getAllClients();
-      setClients(allClients);
+      try {
+        const allClients = await RequestsAPI.getAllClients();
+        setClients(allClients);
+      } catch (error) {
+        console.error('Failed to fetch clients:', error);
+      }
     };
     fetchClients();
   }, []);
@@ -28,7 +31,7 @@ const ClientList = () => {
     { key: "rejectedRequests", label: "Rejected", filterType: "number" },
   ];
 
-  // Fields for the modal display
+  // Client details displayed in modal
   const modalFields = [
     { key: "clientID", label: "Client ID" },
     { key: "clientName", label: "Client Name" },

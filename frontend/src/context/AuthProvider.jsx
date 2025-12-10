@@ -1,17 +1,17 @@
 
 
-import { createContext, useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { loginUser, registerUser } from "../apiLogin.js";
+import { createContext, useState, useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { loginUser, registerUser } from '../apiLogin';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // { email, role, token }
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Restore user from sessionStorage on mount
+  // Restore session from storage on app load
   useEffect(() => {
     const storedUser = sessionStorage.getItem('user');
     if (storedUser) {
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Handle user login and navigation
   const login = async (email, password) => {
     const response = await loginUser(email, password);
 
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Handle new user registration
   const register = async (userData) => {
     const response = await registerUser(userData);
 
@@ -57,6 +59,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Clear session and redirect to login
   const logout = () => {
     setUser(null);
     sessionStorage.removeItem('user');
@@ -65,7 +68,7 @@ export const AuthProvider = ({ children }) => {
 
   const isLoggedIn = !!user;
 
-  // Don't render children until we've checked localStorage
+  // Wait for session restore before rendering
   if (loading) {
     return <div>Loading...</div>;
   }

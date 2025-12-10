@@ -1,3 +1,4 @@
+// Service request form - allows clients to submit cleaning requests
 import { useState, useEffect } from 'react';
 import { Form, Input, Button, Select, DatePicker, Checkbox, Upload, Alert, Row, Col, Card, Typography, Radio } from 'antd';
 import { UploadOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -19,7 +20,7 @@ const RequestForm = () => {
 
     const services = ['Basic', 'Deep Clean', 'Move Out'];
     
-    // Pricing structure
+    // Service pricing rates
     const servicePricing = {
         'Basic': 50,
         'Deep Clean': 70,
@@ -28,7 +29,7 @@ const RequestForm = () => {
     
     const outdoorCost = 40; // per hour
 
-    // Fetch user's saved address
+    // Load user's saved address on mount
     useEffect(() => {
         const fetchUserData = async () => {
             try {
@@ -59,14 +60,19 @@ const RequestForm = () => {
         }
     };
 
-    // Calculate estimated cost when form values change
+    // Calculate estimate based on service type and rooms
     const calculateEstimate = () => {
         const formValues = form.getFieldsValue();
         const { serviceType, numRooms, addOutdoor } = formValues;
         
         if (serviceType && numRooms) {
             const basePrice = servicePricing[serviceType] || 0;
-            const roomCost = basePrice * parseInt(numRooms);
+            const parsedRooms = parseInt(numRooms);
+            if (isNaN(parsedRooms) || parsedRooms < 1) {
+                setEstimatedCost(0);
+                return;
+            }
+            const roomCost = basePrice * parsedRooms;
             const extraCost = addOutdoor ? outdoorCost : 0;
             const total = roomCost + extraCost;
             setEstimatedCost(total);

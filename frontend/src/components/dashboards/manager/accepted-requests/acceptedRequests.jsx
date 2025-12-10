@@ -1,16 +1,15 @@
-
-
-
+// Manager view for completed and rejected service requests
 import { useState, useEffect, useRef } from 'react';
 import { message, Timeline } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import { RequestsAPI } from '../../../../api.js';
+import { RequestsAPI } from '../../../../api';
+import { API_BASE_URL } from '../../../../config';
 import { formatDateTime, fetchNegotiationRecords, renderNegotiationHistory } from '../../../../utils/helpers';
 
-import SubWindowModal from '../sub-window-modal/subWindowModal.jsx';
-import FilterTable from "../filter-bar/filterBar.jsx";
+import SubWindowModal from '../sub-window-modal/subWindowModal';
+import FilterTable from '../filter-bar/filterBar';
 
-import "../managerWindow.css";
+import '../managerWindow.css';
 
 const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) => {
   const [completed, setCompleted] = useState([]);
@@ -23,7 +22,7 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
       const status = isRejected ? "rejected" : "completed";
       const data = await RequestsAPI.getByStatus(status);
       
-      // For rejected requests, fetch who cancelled each one and when
+      // Fetch cancellation details for rejected requests
       if (isRejected && data.length > 0) {
         const enrichedData = await Promise.all(
           data.map(async (request) => {
@@ -110,7 +109,7 @@ const AcceptedRequests = ({ title = "Completed Requests", isRejected = false }) 
         freshData.photo3Path,
         freshData.photo4Path,
         freshData.photo5Path
-      ].filter(Boolean).map(path => `http://localhost:5000${path}`);
+      ].filter(Boolean).map(path => `${API_BASE_URL}${path}`);
       
       setSelectedRequest({ ...freshData, photos });
       

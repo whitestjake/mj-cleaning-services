@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS admins (
 -- Create clients table if it does not exist
 CREATE TABLE IF NOT EXISTS clients (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    clientID VARCHAR(50) UNIQUE NOT NULL,  -- Unique client ID (e.g., CL-20251208-0001)
+    clientID VARCHAR(50) UNIQUE NOT NULL, 
 
     firstName VARCHAR(100) NOT NULL,
     lastName VARCHAR(100) NOT NULL,
@@ -94,3 +94,5 @@ CREATE TABLE IF NOT EXISTS records (
 
     FOREIGN KEY (requestId) REFERENCES service_requests(id)
 );
+
+
